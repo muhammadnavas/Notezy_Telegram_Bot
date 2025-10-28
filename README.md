@@ -110,10 +110,11 @@ Webhook deployment prevents multiple instance conflicts and is more reliable for
 ### Option 2: Polling Deployment (Development/Testing)
 For development or testing, use polling mode:
 
-1. **Service Type**: Background Worker
-2. **Runtime**: Python 3
-3. **Build Command**: `pip install -r requirements.txt`
-4. **Start Command**: `python bot.py`
+### Manual Setup
+- **Service Type**: Web Service
+- **Runtime**: Python 3
+- **Build Command**: `pip install -r requirements.txt`
+- **Start Command**: `python start.py`
 5. **Environment Variables**: `BOT_TOKEN`, `MONGODB_URI` (no WEBHOOK_URL needed)
 
 ### Deployment Modes
@@ -159,7 +160,7 @@ The bot automatically chooses the deployment mode:
 - `database.py` - MongoDB handler with sync functionality
 - `auto_sync.py` - Automatic sync script
 - `import_notes.py` - Import tools for MongoDB
-- `render.yaml` - Render polling deployment configuration
+- `render.yaml` - Render webhook deployment configuration
 - `requirements.txt` - Python dependencies
 - `.env` - Environment variables (not in repo)
 
