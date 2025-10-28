@@ -6,6 +6,10 @@ from database import NotesDatabase
 import json
 import csv
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 def import_from_csv(csv_file: str):
     """
@@ -77,7 +81,7 @@ def import_from_mongodb():
         # Source MongoDB connection (your existing database)
         source_uri = os.getenv("MONGODB_URI")
         source_client = MongoClient(source_uri)
-        source_db = source_client["notezy"]  # Your database name
+        source_db = source_client["test"]  # Change this to your actual database name
         source_collection = source_db["notes"]  # Your collection name
         
         # Get all notes from source
@@ -238,10 +242,8 @@ if __name__ == "__main__":
         create_sample_csv()
     
     elif choice == '6':
-        print("\n⚠️  Configure MongoDB source in import_notes.py first")
-        confirm = input("Have you configured MongoDB source? (yes/no): ").strip().lower()
-        if confirm == 'yes':
-            import_from_mongodb()
+        print("\n🔄 Importing from MongoDB...")
+        import_from_mongodb()
     
     # Show stats
     db = NotesDatabase()
