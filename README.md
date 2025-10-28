@@ -113,7 +113,7 @@ For development or testing, use polling mode:
 1. **Service Type**: Background Worker
 2. **Runtime**: Python 3
 3. **Build Command**: `pip install -r requirements.txt`
-4. **Start Command**: `python start.py`
+4. **Start Command**: `python bot.py`
 5. **Environment Variables**: `BOT_TOKEN`, `MONGODB_URI` (no WEBHOOK_URL needed)
 
 ### Deployment Modes

@@ -3,7 +3,7 @@ services:
     name: notezy-telegram-bot
     runtime: python3
     buildCommand: pip install -r requirements.txt
-    startCommand: python start.py
+    startCommand: python bot.py
     envVars:
       - key: BOT_TOKEN
         sync: false
