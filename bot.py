@@ -1,5 +1,6 @@
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.error import Conflict
 import os
 from dotenv import load_dotenv
 from database import NotesDatabase
@@ -303,10 +304,32 @@ if __name__ == "__main__":
         exit(1)
     
     app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    # Add error handler for conflicts
+    async def error_handler(update: Update, context):
+        """Handle Telegram API errors"""
+        if isinstance(context.error, Conflict):
+            print("❌ Conflict error: Multiple bot instances detected")
+            print("💡 Make sure only one bot instance is running")
+            return
+        print(f"❌ Update error: {context.error}")
+
+    app.add_error_handler(error_handler)
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("sync", sync_notes))  # Admin sync command
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greeting))  # Handle greetings and search
-    
+
     print("🤖 Notezy Bot is running...")
     print("💡 Use /sync command to update notes from database")
-    app.run_polling()
+    print("🔒 Only one instance should be running to avoid conflicts")
+
+    try:
+        app.run_polling(
+            allowed_updates=Update.ALL_TYPES,
+            drop_pending_updates=True  # Drop pending updates on startup
+        )
+    except KeyboardInterrupt:
+        print("🛑 Bot stopped by user")
+    except Exception as e:
+        print(f"❌ Bot error: {e}")
