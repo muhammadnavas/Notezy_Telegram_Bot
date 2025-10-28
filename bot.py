@@ -305,16 +305,16 @@ if __name__ == "__main__":
     
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-
     # Add error handler for conflicts
     async def error_handler(update: Update, context):
         """Handle Telegram API errors"""
         if isinstance(context.error, Conflict):
             print("❌ Conflict error: Multiple bot instances detected")
             print("💡 Make sure only one bot instance is running")
-            print("🔄 Attempting to restart with clean polling...")
-            # Don't return here, let it try to recover
+            print("🔄 This instance will exit to prevent conflicts")
+            # Exit the application when conflict is detected
+            import sys
+            sys.exit(1)
         print(f"❌ Update error: {context.error}")
 
     app.add_error_handler(error_handler)

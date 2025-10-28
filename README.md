@@ -159,7 +159,7 @@ The bot automatically chooses the deployment mode:
 - `database.py` - MongoDB handler with sync functionality
 - `auto_sync.py` - Automatic sync script
 - `import_notes.py` - Import tools for MongoDB
-- `render.yaml` - Render webhook deployment configuration
+- `render.yaml` - Render polling deployment configuration
 - `requirements.txt` - Python dependencies
 - `.env` - Environment variables (not in repo)
 
