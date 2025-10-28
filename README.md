@@ -95,20 +95,37 @@ Send `/sync` command to the bot (admin only)
 
 ## Deployment to Render ☁️
 
-### Quick Deploy
-1. Push code to GitHub/GitLab
-2. Go to [render.com](https://render.com)
+### Option 1: Webhook Deployment (Recommended for Production)
+Webhook deployment prevents multiple instance conflicts and is more reliable for production.
+
+1. **Push code to GitHub/GitLab**
+2. **Go to [render.com](https://render.com)**
 3. **New** → **Blueprint** → Connect your repo
-4. Set environment variables: `BOT_TOKEN`, `MONGODB_URI`
-5. **Create Service** - Deployed in 2-3 minutes!
+4. **Set environment variables:**
+   - `BOT_TOKEN` - Your Telegram bot token
+   - `MONGODB_URI` - MongoDB connection string
+   - `WEBHOOK_URL` - Your Render service URL (will be auto-generated)
+5. **Deploy** - The `render.yaml` file handles the webhook setup automatically!
 
-### Manual Setup
-- **Service Type**: Background Worker
-- **Runtime**: Python 3
-- **Build Command**: `pip install -r requirements.txt`
-- **Start Command**: `python start.py`
+### Option 2: Polling Deployment (Development/Testing)
+For development or testing, use polling mode:
 
-See `RENDER_DEPLOYMENT.md` for detailed instructions.
+1. **Service Type**: Background Worker
+2. **Runtime**: Python 3
+3. **Build Command**: `pip install -r requirements.txt`
+4. **Start Command**: `python start.py`
+5. **Environment Variables**: `BOT_TOKEN`, `MONGODB_URI` (no WEBHOOK_URL needed)
+
+### Deployment Modes
+The bot automatically chooses the deployment mode:
+- **Webhook Mode**: When `WEBHOOK_URL` is set (Production)
+- **Polling Mode**: When `WEBHOOK_URL` is not set (Development)
+
+### Files for Deployment
+- `start.py` - Auto-detects deployment mode
+- `webhook_bot.py` - Webhook implementation
+- `bot.py` - Polling implementation
+- `render.yaml` - Render webhook configuration
 
 ## Database Schema
 
@@ -136,12 +153,13 @@ See `RENDER_DEPLOYMENT.md` for detailed instructions.
 
 ## Files Structure
 
-- `bot.py` - Main bot with search and greeting handlers
+- `bot.py` - Main bot with polling mode (development)
+- `webhook_bot.py` - Webhook-based bot (production)
+- `start.py` - Auto-deployment mode selector
 - `database.py` - MongoDB handler with sync functionality
-- `start.py` - Render deployment startup script
 - `auto_sync.py` - Automatic sync script
 - `import_notes.py` - Import tools for MongoDB
-- `render.yaml` - Render deployment configuration
+- `render.yaml` - Render webhook deployment configuration
 - `requirements.txt` - Python dependencies
 - `.env` - Environment variables (not in repo)
 
