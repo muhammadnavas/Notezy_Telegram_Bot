@@ -9,7 +9,7 @@ A Telegram bot for searching and accessing course notes by subject name or code 
 - 📚 **Semester Queries** - Direct links to semester pages (e.g., "4th sem", "for 3rd sem")
 - 🔄 **Auto-Sync** - Automatically sync new notes from MongoDB
 - 🚀 **Fast and responsive** with MongoDB backend
-- 🌐 Integration with Notezy.online (keeps page views!)
+- 🌐 Integration with Notezy.online
 - ☁️ **Render Deployment** - Ready for cloud deployment
 
 ## Setup
