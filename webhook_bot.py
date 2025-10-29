@@ -350,8 +350,12 @@ async def main():
             print("⚠️ Event loop closing issue detected - this is normal in some environments")
             print("✅ Webhook server should still be running despite the error")
             print("🎉 Bot deployment successful!")
-            # Don't re-raise the error, just log it and return
-            return
+            # Keep the process alive since webhook server might still be running
+            print("🔄 Keeping process alive for webhook server...")
+            import time
+            while True:
+                time.sleep(60)  # Sleep indefinitely to keep process alive
+                print("💓 Webhook server heartbeat")
         else:
             # For other errors, log and re-raise
             print(f"❌ Webhook error: {e}")
