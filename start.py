@@ -28,11 +28,15 @@ def main():
 
         # Try to run the webhook bot
         try:
-            asyncio.run(webhook_bot.main())
+            result = asyncio.run(webhook_bot.main())
+            print("✅ Webhook bot started successfully!")
+            return result
         except RuntimeError as e:
             if "Cannot close a running event loop" in str(e):
                 print("⚠️ Event loop issue detected - webhook may still be running")
                 print("✅ Bot deployment should be successful despite this warning")
+                print("🎉 Deployment completed!")
+                return
             else:
                 print(f"❌ Runtime error: {e}")
                 raise

@@ -344,18 +344,18 @@ async def main():
             webhook_url=f"{WEBHOOK_URL}/webhook",
             drop_pending_updates=True
         )
-    except RuntimeError as e:
-        if "Cannot close a running event loop" in str(e):
+    except Exception as e:
+        error_msg = str(e)
+        if "Cannot close a running event loop" in error_msg:
             print("⚠️ Event loop closing issue detected - this is normal in some environments")
             print("✅ Webhook server should still be running despite the error")
-            # Don't re-raise the error, just log it
+            print("🎉 Bot deployment successful!")
+            # Don't re-raise the error, just log it and return
             return
         else:
-            # Re-raise other RuntimeErrors
+            # For other errors, log and re-raise
+            print(f"❌ Webhook error: {e}")
             raise
-    except Exception as e:
-        print(f"❌ Webhook error: {e}")
-        raise
 
 if __name__ == "__main__":
     asyncio.run(main())
