@@ -10,8 +10,8 @@ import asyncio
 # Load environment variables
 load_dotenv()
 
-# Initialize database
-db = NotesDatabase()
+# Database will be initialized in main() to avoid import-time connections
+db = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -298,6 +298,10 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def main():
     """Main function for webhook bot"""
+    global db
+    # Initialize database here to avoid import-time connections
+    db = NotesDatabase()
+
     # Get bot token from environment variable
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     WEBHOOK_URL = os.getenv("WEBHOOK_URL")
