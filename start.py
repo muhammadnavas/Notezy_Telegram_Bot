@@ -16,33 +16,29 @@ load_dotenv()
 def main():
     """Choose deployment mode based on environment.
 
-    - If WEBHOOK_URL is set -> run webhook bot
+    - If WEBHOOK_URL is set -> run webhook bot directly (don't use asyncio.run)
     - Otherwise -> run polling bot by executing bot.py as __main__
     """
     webhook_url = os.getenv("WEBHOOK_URL")
 
     if webhook_url:
         print("🚀 Starting bot in WEBHOOK mode (Production)")
-        # Import here to ensure env vars are loaded
+        # For webhook deployment, import and run directly
+        # This avoids asyncio.run() which can cause event loop issues
         import webhook_bot
 
-        # Try to run the webhook bot
+        # Create a new event loop and run the webhook
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
-            result = asyncio.run(webhook_bot.main())
-            print("✅ Webhook bot started successfully!")
-            return result
-        except RuntimeError as e:
-            if "Cannot close a running event loop" in str(e):
-                print("⚠️ Event loop issue detected - webhook may still be running")
-                print("✅ Bot deployment should be successful despite this warning")
-                print("🎉 Deployment completed!")
-                return
-            else:
-                print(f"❌ Runtime error: {e}")
-                raise
-        except Exception as e:
-            print(f"❌ Unexpected error: {e}")
-            raise
+            loop.run_until_complete(webhook_bot.main())
+        except KeyboardInterrupt:
+            print("🛑 Received interrupt signal")
+        finally:
+            try:
+                loop.close()
+            except:
+                pass
     else:
         print("🧪 Starting bot in POLLING mode (Development)")
         # Execute bot.py as a script (runs its __main__ block)
