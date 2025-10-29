@@ -337,10 +337,16 @@ async def main():
     print(f"🔌 Port: {PORT}")
     print("💡 Use /sync command to update notes from database")
 
-    # Set webhook
-    await app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+    # Set webhook (don't fail if this doesn't work)
+    try:
+        await app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
+        print("✅ Webhook set successfully")
+    except Exception as e:
+        print(f"⚠️ Failed to set webhook: {e}")
+        print("🔄 Continuing with webhook server anyway...")
 
     # Start webhook server
+    print(f"🚀 Starting webhook server on port {PORT}...")
     try:
         await app.run_webhook(
             listen="0.0.0.0",
@@ -362,8 +368,5 @@ async def main():
                 print("💓 Webhook server heartbeat")
         else:
             # For other errors, log and re-raise
-            print(f"❌ Webhook error: {e}")
+            print(f"❌ Webhook server error: {e}")
             raise
-
-if __name__ == "__main__":
-    asyncio.run(main())
