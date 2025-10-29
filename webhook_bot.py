@@ -346,6 +346,13 @@ async def main():
         )
     except Exception as e:
         print(f"❌ Webhook error: {e}")
+        # Try to handle event loop issues
+        if "Cannot close a running event loop" in str(e):
+            print("⚠️ Event loop issue detected, attempting graceful shutdown")
+            try:
+                await app.shutdown()
+            except:
+                pass
         raise
 
 if __name__ == "__main__":
