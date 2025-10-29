@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 import json
+import re
 
 class NotesDatabase:
     def __init__(self, db_name="notezy_bot"):
@@ -124,9 +125,11 @@ class NotesDatabase:
         ]
         
         for field, weight in search_fields:
+            # Use word boundary regex for better matching
+            regex_pattern = r'\b' + re.escape(query_lower) + r'\b'
             matches = list(self.collection.find({
-                field: {"$regex": query_lower, "$options": "i"}
-            }).limit(limit * 2))  # Get more for scoring
+                field: {"$regex": regex_pattern, "$options": "i"}
+            }).limit(limit * 3))  # Get even more for better coverage
             
             for match in matches:
                 # Calculate relevance score
@@ -192,7 +195,7 @@ class NotesDatabase:
                     'branch_url': branch_url,
                     'semester': data['semester'],
                     'branch': data['branch'],
-                    'subjects': data['subjects'][:5],  # Top 5 subjects per branch
+                    'subjects': data['subjects'][:10],  # Top 10 subjects per branch
                     'total_subjects': len(data['subjects'])
                 })
             

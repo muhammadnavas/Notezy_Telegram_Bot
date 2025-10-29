@@ -170,7 +170,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.message.text.strip()
     
     # Search in database
-    search_result = db.search_notes(query, limit=15)
+    search_result = db.search_notes(query, limit=50)
     
     if search_result["type"] == "exact":
         # Found exact matches
@@ -203,7 +203,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"�🔗 [View Notes]({full_url})"
             )
         
-        response_text = "\n\n".join(formatted_results[:3])  # Max 3 branch links
+        response_text = "\n\n".join(formatted_results[:5])  # Max 5 branch links
         
         await update.message.reply_text(
             response_text,
@@ -220,11 +220,11 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔍 *Partial matches for '{query}':*\n"
         ]
         
-        for branch_data in results[:3]:  # Max 3 branches
+        for branch_data in results[:5]:  # Max 5 branches
             full_url = f"https://www.notezy.online{branch_data['branch_url']}"
-            subjects_text = ", ".join([subj['full_name'] for subj in branch_data['subjects'][:3]])
-            if branch_data['total_subjects'] > 3:
-                subjects_text += f" +{branch_data['total_subjects'] - 3} more"
+            subjects_text = ", ".join([subj['full_name'] for subj in branch_data['subjects'][:5]])
+            if branch_data['total_subjects'] > 5:
+                subjects_text += f" +{branch_data['total_subjects'] - 5} more"
             
             response_parts.append(
                 f"🏫 *{branch_data['semester']} - {branch_data['branch']}*\n"
