@@ -6,7 +6,6 @@ Supports both polling (development) and webhook (production) modes
 
 import os
 import runpy
-import asyncio
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -16,29 +15,17 @@ load_dotenv()
 def main():
     """Choose deployment mode based on environment.
 
-    - If WEBHOOK_URL is set -> run webhook bot directly (don't use asyncio.run)
+    - If RENDER_EXTERNAL_HOSTNAME is set -> run webhook bot (aiohttp server)
     - Otherwise -> run polling bot by executing bot.py as __main__
     """
-    webhook_url = os.getenv("WEBHOOK_URL")
+    render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 
-    if webhook_url:
+    if render_hostname:
         print("🚀 Starting bot in WEBHOOK mode (Production)")
-        # For webhook deployment, import and run directly
-        # This avoids asyncio.run() which can cause event loop issues
+        # For webhook deployment with aiohttp, import and run directly
+        # web.run_app() handles the event loop internally
         import webhook_bot
-
-        # Create a new event loop and run the webhook
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(webhook_bot.main())
-        except KeyboardInterrupt:
-            print("🛑 Received interrupt signal")
-        finally:
-            try:
-                loop.close()
-            except:
-                pass
+        webhook_bot.main()
     else:
         print("🧪 Starting bot in POLLING mode (Development)")
         # Execute bot.py as a script (runs its __main__ block)

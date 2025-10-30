@@ -3,9 +3,9 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from telegram.error import Conflict
 import os
 from dotenv import load_dotenv
-from database import NotesDatabase
+from aiohttp import web
 import re
-import asyncio
+from database import NotesDatabase
 
 # Load environment variables
 load_dotenv()
@@ -296,26 +296,53 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
 
+async def webhook_handler(request):
+    """Handle incoming webhook updates from Telegram"""
+    try:
+        data = await request.json()
+        update = Update.de_json(data, application.bot)
+        await application.process_update(update)
+        return web.Response(text="OK")
+    except Exception as e:
+        print(f"❌ Webhook error: {e}")
+        return web.Response(text="ERROR", status=500)
+
+async def health_check(request):
+    """Health check endpoint for Render"""
+    return web.Response(text="OK")
+
+async def on_startup(app):
+    """Set up webhook on startup"""
+    try:
+        webhook_url = f"{WEBHOOK_URL}/{BOT_TOKEN}"
+        await application.bot.set_webhook(webhook_url)
+        print(f"✅ Webhook set to {webhook_url}")
+    except Exception as e:
+        print(f"⚠️ Failed to set webhook: {e}")
+        print("🔄 Continuing with webhook server anyway...")
+
 async def main():
     """Main function for webhook bot"""
-    global db
+    global db, application, BOT_TOKEN, WEBHOOK_URL
+
     # Initialize database here to avoid import-time connections
     db = NotesDatabase()
 
-    # Get bot token from environment variable
+    # Get environment variables
     BOT_TOKEN = os.getenv("BOT_TOKEN")
-    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-    PORT = int(os.getenv("PORT", 10000))
+    PORT = int(os.getenv("PORT", 8080))
+    RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 
     if not BOT_TOKEN:
-        print("❌ Error: BOT_TOKEN not found in environment variables")
-        return
+        raise Exception("❌ BOT_TOKEN missing from environment!")
 
-    if not WEBHOOK_URL:
-        print("❌ Error: WEBHOOK_URL not found in environment variables")
-        return
+    if not RENDER_EXTERNAL_HOSTNAME:
+        raise Exception("❌ RENDER_EXTERNAL_HOSTNAME missing from environment!")
 
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    WEBHOOK_URL = f"https://{RENDER_EXTERNAL_HOSTNAME}"
+
+    # Create Telegram application
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
 
     # Add error handler for conflicts
     async def error_handler(update: Update, context):
@@ -326,47 +353,31 @@ async def main():
         else:
             print(f"❌ Update error: {context.error}")
 
-    app.add_error_handler(error_handler)
+    application.add_error_handler(error_handler)
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("sync", sync_notes))  # Admin sync command
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greeting))  # Handle greetings and search
+    # Add handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("sync", sync_notes))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greeting))
+
+    # Create aiohttp web application
+    app = web.Application()
+
+    # Add routes
+    app.router.add_post(f'/{BOT_TOKEN}', webhook_handler)
+    app.router.add_get('/', health_check)
+    app.router.add_get('/health', health_check)
+
+    # Add startup handler
+    app.on_startup.append(on_startup)
 
     print("🤖 Notezy Bot is starting with webhook...")
     print(f"🌐 Webhook URL: {WEBHOOK_URL}")
     print(f"🔌 Port: {PORT}")
     print("💡 Use /sync command to update notes from database")
 
-    # Set webhook (don't fail if this doesn't work)
-    try:
-        await app.bot.set_webhook(url=f"{WEBHOOK_URL}/webhook")
-        print("✅ Webhook set successfully")
-    except Exception as e:
-        print(f"⚠️ Failed to set webhook: {e}")
-        print("🔄 Continuing with webhook server anyway...")
+    # Start the web server
+    web.run_app(app, host="0.0.0.0", port=PORT)
 
-    # Start webhook server
-    print(f"🚀 Starting webhook server on port {PORT}...")
-    try:
-        await app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            webhook_url=f"{WEBHOOK_URL}/webhook",
-            drop_pending_updates=True
-        )
-    except Exception as e:
-        error_msg = str(e)
-        if "Cannot close a running event loop" in error_msg:
-            print("⚠️ Event loop closing issue detected - this is normal in some environments")
-            print("✅ Webhook server should still be running despite the error")
-            print("🎉 Bot deployment successful!")
-            # Keep the process alive since webhook server might still be running
-            print("🔄 Keeping process alive for webhook server...")
-            import time
-            while True:
-                time.sleep(60)  # Sleep indefinitely to keep process alive
-                print("💓 Webhook server heartbeat")
-        else:
-            # For other errors, log and re-raise
-            print(f"❌ Webhook server error: {e}")
-            raise
+if __name__ == "__main__":
+    main()
