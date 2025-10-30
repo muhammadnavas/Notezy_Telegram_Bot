@@ -301,9 +301,16 @@ async def webhook_handler(request):
     try:
         print("📨 Received webhook request")
         data = await request.json()
-        print(f"📦 Update data: {data}")
+        print(f"📦 Update data keys: {list(data.keys()) if isinstance(data, dict) else 'not dict'}")
         update = Update.de_json(data, application.bot)
         print("🔄 Processing update...")
+        
+        # Make sure application is initialized
+        if not application._initialized:
+            print("⚠️ Application not initialized, initializing now...")
+            await application.initialize()
+            print("✅ Application initialized in webhook handler")
+        
         await application.process_update(update)
         print("✅ Update processed successfully")
         return web.Response(text="OK")
@@ -320,6 +327,10 @@ async def health_check(request):
 async def on_startup(app):
     """Set up webhook on startup"""
     try:
+        print("🔄 Initializing Telegram application...")
+        await application.initialize()
+        print("✅ Telegram application initialized")
+        
         webhook_url = f"{WEBHOOK_URL}/webhook"
         print(f"🔗 Setting webhook to: {webhook_url}")
         await application.bot.set_webhook(webhook_url)
