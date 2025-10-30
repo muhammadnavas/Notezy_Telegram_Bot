@@ -299,12 +299,18 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def webhook_handler(request):
     """Handle incoming webhook updates from Telegram"""
     try:
+        print("📨 Received webhook request")
         data = await request.json()
+        print(f"📦 Update data: {data}")
         update = Update.de_json(data, application.bot)
+        print("🔄 Processing update...")
         await application.process_update(update)
+        print("✅ Update processed successfully")
         return web.Response(text="OK")
     except Exception as e:
         print(f"❌ Webhook error: {e}")
+        import traceback
+        traceback.print_exc()
         return web.Response(text="ERROR", status=500)
 
 async def health_check(request):
@@ -314,24 +320,45 @@ async def health_check(request):
 async def on_startup(app):
     """Set up webhook on startup"""
     try:
-        webhook_url = f"{WEBHOOK_URL}/{BOT_TOKEN}"
+        webhook_url = f"{WEBHOOK_URL}/webhook"
+        print(f"🔗 Setting webhook to: {webhook_url}")
         await application.bot.set_webhook(webhook_url)
-        print(f"✅ Webhook set to {webhook_url}")
+        print(f"✅ Webhook set successfully to {webhook_url}")
+        
+        # Verify webhook was set
+        webhook_info = await application.bot.get_webhook_info()
+        print(f"📋 Webhook info: {webhook_info}")
+        
     except Exception as e:
         print(f"⚠️ Failed to set webhook: {e}")
+        import traceback
+        traceback.print_exc()
         print("🔄 Continuing with webhook server anyway...")
 
 def main():
     """Main function for webhook bot"""
     global db, application, BOT_TOKEN, WEBHOOK_URL
 
+    print("🚀 Starting webhook bot initialization...")
+
     # Initialize database here to avoid import-time connections
-    db = NotesDatabase()
+    print("📊 Initializing database...")
+    try:
+        db = NotesDatabase()
+        print("✅ Database initialized successfully")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        raise
 
     # Get environment variables
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     PORT = int(os.getenv("PORT", 8080))
     RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+
+    print(f"🔧 Environment variables:")
+    print(f"  - BOT_TOKEN: {'***' + BOT_TOKEN[-10:] if BOT_TOKEN else 'NOT SET'}")
+    print(f"  - PORT: {PORT}")
+    print(f"  - RENDER_EXTERNAL_HOSTNAME: {RENDER_EXTERNAL_HOSTNAME}")
 
     if not BOT_TOKEN:
         raise Exception("❌ BOT_TOKEN missing from environment!")
@@ -340,9 +367,12 @@ def main():
         raise Exception("❌ RENDER_EXTERNAL_HOSTNAME missing from environment!")
 
     WEBHOOK_URL = f"https://{RENDER_EXTERNAL_HOSTNAME}"
+    print(f"🌐 Webhook base URL: {WEBHOOK_URL}")
 
     # Create Telegram application
+    print("🤖 Creating Telegram application...")
     application = ApplicationBuilder().token(BOT_TOKEN).build()
+    print("✅ Telegram application created")
 
     # Add error handler for conflicts
     async def error_handler(update: Update, context):
@@ -356,20 +386,25 @@ def main():
     application.add_error_handler(error_handler)
 
     # Add handlers
+    print("📝 Adding command handlers...")
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("sync", sync_notes))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greeting))
+    print("✅ Handlers added")
 
     # Create aiohttp web application
+    print("🌐 Creating aiohttp web application...")
     app = web.Application()
 
     # Add routes
-    app.router.add_post(f'/{BOT_TOKEN}', webhook_handler)
+    app.router.add_post('/webhook', webhook_handler)
     app.router.add_get('/', health_check)
     app.router.add_get('/health', health_check)
+    print("✅ Routes added")
 
     # Add startup handler
     app.on_startup.append(on_startup)
+    print("✅ Startup handler added")
 
     print("🤖 Notezy Bot is starting with webhook...")
     print(f"🌐 Webhook URL: {WEBHOOK_URL}")
@@ -377,6 +412,7 @@ def main():
     print("💡 Use /sync command to update notes from database")
 
     # Start the web server
+    print("🚀 Starting web server...")
     web.run_app(app, host="0.0.0.0", port=PORT)
 
 if __name__ == "__main__":
