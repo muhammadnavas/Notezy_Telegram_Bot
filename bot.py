@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram.error import Conflict
 import os
@@ -13,11 +13,118 @@ load_dotenv()
 db = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 Welcome to Notezy Bot!\n"
-        "Search notes by *subject name* or *code* (e.g., 18CS51 or Data Structures).",
-        parse_mode='Markdown'
+    """Welcome message with semester links using inline keyboard"""
+    welcome_text = (
+        "👋 Hello! I am Notezy Bot ☘️\n\n"
+        "Your quick and chat-responsive study companion!\n"
+        "You can search and access VTU notes for all semesters here.\n\n"
+        "📚 Click on your semester below to view the notes:"
     )
+
+    # Create buttons for all semesters
+    semesters = {
+        "1st Semester": "https://www.notezy.online/Chemistrycycle",
+        "2nd Semester": "https://www.notezy.online/Physicscycle",
+        "3rd Semester": "https://www.notezy.online/Sem3",
+        "4th Semester": "https://www.notezy.online/Sem4",
+        "5th Semester": "https://www.notezy.online/Sem5",
+        "6th Semester": "https://www.notezy.online/Sem6"
+    }
+
+    keyboard = []
+    for sem, link in semesters.items():
+        keyboard.append([InlineKeyboardButton(sem, url=link)])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+
+
+async def semesters_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Display semester options with inline keyboard"""
+    text = "📚 Choose your semester to view notes:"
+    
+    semesters = {
+        "1st Semester": "https://www.notezy.online/Chemistrycycle",
+        "2nd Semester": "https://www.notezy.online/Physicscycle", 
+        "3rd Semester": "https://www.notezy.online/Sem3",
+        "4th Semester": "https://www.notezy.online/Sem4",
+        "5th Semester": "https://www.notezy.online/Sem5",
+        "6th Semester": "https://www.notezy.online/Sem6"
+    }
+    
+    keyboard = []
+    for sem, link in semesters.items():
+        keyboard.append([InlineKeyboardButton(sem, url=link)])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(text, reply_markup=reply_markup)
+
+
+async def branches_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Display available engineering branches"""
+    text = (
+        "🏫 Available Engineering Branches:\n\n"
+        "• Computer Science & Engineering (CSE)\n"
+        "• Information Science & Engineering (ISE)\n"
+        "• Electronics & Communication (ECE)\n"
+        "• AI & ML (AIML)\n"
+        "• AI & DS (AIDS)\n\n"
+        "📖 Notes are available for all branches across all semesters!"
+    )
+    await update.message.reply_text(text)
+
+
+async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Display information about the bot"""
+    text = (
+        "🤖 About Notezy Bot\n\n"
+        "Notezy Bot is your AI-powered study companion for VTU engineering students!\n\n"
+        "✨ Features:\n"
+        "• Instant search across all subjects\n"
+        "• Access to comprehensive VTU notes\n"
+        "• Organized by semester and branch\n"
+        "• Quick and responsive chat interface\n\n"
+        "📚 Supported:\n"
+        "• All VTU engineering branches\n"
+        "• 1st to 6th semester notes\n"
+        "• Subject codes and names search\n\n"
+        "🌐 Website: https://www.notezy.online\n"
+        "💬 For support: @notezy_support"
+    )
+    await update.message.reply_text(text)
+
+
+async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle feedback requests"""
+    text = (
+        "📝 We'd love to hear your feedback!\n\n"
+        "Please share your thoughts, suggestions, or report any issues:\n\n"
+        "💬 Send your feedback to: @notezy_support\n\n"
+        "Your feedback helps us improve Notezy Bot for all students! 🙏"
+    )
+    await update.message.reply_text(text)
+
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Display help information and available commands"""
+    text = (
+        "🆘 Help & Commands\n\n"
+        "Available Commands:\n\n"
+        "🚀 /start - Welcome message with semester links\n"
+        "📚 /semesters - View all semester options\n"
+        "🏫 /branches - See available engineering branches\n"
+        "🔍 /search <subject> - Search for notes by subject name or code\n"
+        "ℹ️ /about - Learn more about Notezy Bot\n"
+        "📝 /feedback - Share your feedback\n"
+        "🆘 /help - Show this help message\n\n"
+        "💡 Tips:\n"
+        "• Search using subject codes (e.g., 18CS51)\n"
+        "• Or use subject names (e.g., Data Structures)\n"
+        "• Get instant access to VTU notes!\n\n"
+        "🌐 Visit: https://www.notezy.online"
+    )
+    await update.message.reply_text(text)
 
 async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = update.message.text.lower().strip()
@@ -322,6 +429,11 @@ if __name__ == "__main__":
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("sync", sync_notes))  # Admin sync command
+    app.add_handler(CommandHandler("semesters", semesters_command))
+    app.add_handler(CommandHandler("branches", branches_command))
+    app.add_handler(CommandHandler("about", about_command))
+    app.add_handler(CommandHandler("feedback", feedback_command))
+    app.add_handler(CommandHandler("help", help_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greeting))  # Handle greetings and search
 
     print("🤖 Notezy Bot is starting...")

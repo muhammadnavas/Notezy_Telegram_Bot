@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from telegram.error import Conflict
 import os
@@ -14,11 +14,31 @@ load_dotenv()
 db = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 Welcome to Notezy Bot!\n"
-        "Search notes by *subject name* or *code* (e.g., 18CS51 or Data Structures).",
-        parse_mode='Markdown'
+    """Welcome message with semester links using inline keyboard"""
+    welcome_text = (
+        "👋 Hello! I am Notezy Bot ☘️\n\n"
+        "Your quick and chat-responsive study companion!\n"
+        "You can search and access VTU notes for all semesters here.\n\n"
+        "📚 Click on your semester below to view the notes:"
     )
+
+    # Create buttons for all semesters
+    semesters = {
+        "1st Semester": "https://www.notezy.online/Chemistrycycle",
+        "2nd Semester": "https://www.notezy.online/Physicscycle",
+        "3rd Semester": "https://www.notezy.online/Sem3",
+        "4th Semester": "https://www.notezy.online/Sem4",
+        "5th Semester": "https://www.notezy.online/Sem5",
+        "6th Semester": "https://www.notezy.online/Sem6"
+    }
+
+    keyboard = []
+    for sem, link in semesters.items():
+        keyboard.append([InlineKeyboardButton(sem, url=link)])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(welcome_text, reply_markup=reply_markup)
 
 async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = update.message.text.lower().strip()
@@ -297,6 +317,112 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
 
+async def semesters_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show all available semesters with links"""
+    semesters = {
+        "1st Semester (Chemistry Cycle)": "https://www.notezy.online/Chemistrycycle",
+        "2nd Semester (Physics Cycle)": "https://www.notezy.online/Physicscycle", 
+        "3rd Semester": "https://www.notezy.online/Sem3",
+        "4th Semester": "https://www.notezy.online/Sem4",
+        "5th Semester": "https://www.notezy.online/Sem5",
+        "6th Semester": "https://www.notezy.online/Sem6"
+    }
+
+    keyboard = []
+    for sem, link in semesters.items():
+        keyboard.append([InlineKeyboardButton(sem, url=link)])
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    text = (
+        "📚 *Available Semesters*\n\n"
+        "Click on your semester to view notes:"
+    )
+
+    await update.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def branches_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show all available VTU branches"""
+    branches_info = {
+        "Computer Science": "computerscience",
+        "Information Science": "informationscience", 
+        "Electronics & Communication": "electronicsandcommunications",
+        "AI & Machine Learning": "aiml",
+        "AI & Data Science": "aids"
+    }
+
+    text = "🏫 *VTU Branches Available:*\n\n"
+    for display_name, branch_code in branches_info.items():
+        text += f"• {display_name}\n"
+    
+    text += f"\n💡 Use semester commands or search for specific subjects!"
+    
+    await update.message.reply_text(text, parse_mode='Markdown')
+
+async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show information about Notezy Bot"""
+    about_text = (
+        "🤖 *About Notezy Bot*\n\n"
+        "Notezy is your VTU notes hub! 🎓\n\n"
+        "📚 *What we offer:*\n"
+        "• Study notes for all VTU semesters\n"
+        "• All branches: CS, IS, ECE, AIML, AIDS\n"
+        "• Subject-wise and code-wise search\n"
+        "• Quick access to study materials\n\n"
+        "🌐 *Visit our website:*\n"
+        "https://www.notezy.online\n\n"
+        "💡 *Quick search tips:*\n"
+        "• Use subject codes (e.g., 18CS51)\n"
+        "• Or subject names (e.g., Data Structures)\n"
+        "• Or semester queries (e.g., 4th sem)\n\n"
+        "Happy studying! 📖✨"
+    )
+    
+    await update.message.reply_text(about_text, parse_mode='Markdown')
+
+async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle feedback from users"""
+    feedback_text = (
+        "📝 *Send Feedback*\n\n"
+        "We'd love to hear from you! 💬\n\n"
+        "📧 *Contact us:*\n"
+        "• Email: support@notezy.online\n"
+        "• Website: https://www.notezy.online\n\n"
+        "Tell us:\n"
+        "• How we can improve the bot\n"
+        "• Missing subjects or notes\n"
+        "• Any issues you encountered\n"
+        "• Suggestions for new features\n\n"
+        "Your feedback helps us make Notezy better! 🙏"
+    )
+    
+    await update.message.reply_text(feedback_text, parse_mode='Markdown')
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show help message with all available commands"""
+    help_text = (
+        "🆘 *Help - Available Commands*\n\n"
+        "🤖 *Basic Commands:*\n"
+        "/start - Welcome message & semester links\n"
+        "/help - Show this help message\n\n"
+        "📚 *Note Commands:*\n"
+        "/semesters - List all semesters with links\n"
+        "/branches - List all VTU branches\n"
+        "/search <subject> - Search for notes\n\n"
+        "ℹ️ *Info Commands:*\n"
+        "/about - Info about Notezy Bot\n"
+        "/feedback - Send feedback\n\n"
+        "🔧 *Admin Commands:*\n"
+        "/sync - Sync notes from database\n\n"
+        "💡 *Quick search examples:*\n"
+        "• /search 18CS51\n"
+        "• /search Data Structures\n"
+        "• Just type: 4th sem\n\n"
+        "Happy studying! 📖✨"
+    )
+    
+    await update.message.reply_text(help_text, parse_mode='Markdown')
+
 async def webhook_handler(request):
     """Handle incoming webhook updates from Telegram"""
     try:
@@ -400,8 +526,13 @@ def main():
     # Add handlers
     print("📝 Adding command handlers...")
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("semesters", semesters_command))
+    application.add_handler(CommandHandler("branches", branches_command))
+    application.add_handler(CommandHandler("about", about_command))
+    application.add_handler(CommandHandler("feedback", feedback_command))
     application.add_handler(CommandHandler("sync", sync_notes))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greeting))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greeting))  # Handle greetings and search
     print("✅ Handlers added")
 
     # Create aiohttp web application
