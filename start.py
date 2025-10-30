@@ -6,7 +6,6 @@ Supports both polling (development) and webhook (production) modes
 
 import os
 import runpy
-import asyncio
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -26,7 +25,7 @@ def main():
         # For webhook deployment with aiohttp, import and run directly
         # web.run_app() handles the event loop internally
         import webhook_bot
-        asyncio.run(webhook_bot.main())
+        webhook_bot.main()
     else:
         print("🧪 Starting bot in POLLING mode (Development)")
         # Execute bot.py as a script (runs its __main__ block)

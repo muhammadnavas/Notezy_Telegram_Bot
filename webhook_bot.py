@@ -321,7 +321,7 @@ async def on_startup(app):
         print(f"⚠️ Failed to set webhook: {e}")
         print("🔄 Continuing with webhook server anyway...")
 
-async def main():
+def main():
     """Main function for webhook bot"""
     global db, application, BOT_TOKEN, WEBHOOK_URL
 
