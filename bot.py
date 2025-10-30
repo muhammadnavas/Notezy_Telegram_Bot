@@ -90,7 +90,7 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• 1st to 6th semester notes\n"
         "• Subject codes and names search\n\n"
         "🌐 Website: https://www.notezy.online\n"
-        "💬 For support: @notezy_support"
+        "💬 For support: notezyhelp@gmail.com"
     )
     await update.message.reply_text(text)
 
