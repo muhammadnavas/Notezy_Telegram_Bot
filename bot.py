@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from telegram.error import Conflict
 import os
 from dotenv import load_dotenv
@@ -13,31 +13,167 @@ load_dotenv()
 db = None
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Welcome message with semester links using inline keyboard"""
+    """Welcome message with main menu buttons"""
     welcome_text = (
         "👋 Hello! I am Notezy Bot ☘️\n\n"
         "Your quick and chat-responsive study companion!\n"
-        "You can search and access VTU notes for all semesters here.\n\n"
-        "📚 Click on your semester below to view the notes:"
+        "Choose an option below to get started:"
     )
 
-    # Create buttons for all semesters
-    semesters = {
-        "1st Semester": "https://www.notezy.online/Chemistrycycle",
-        "2nd Semester": "https://www.notezy.online/Physicscycle",
-        "3rd Semester": "https://www.notezy.online/Sem3",
-        "4th Semester": "https://www.notezy.online/Sem4",
-        "5th Semester": "https://www.notezy.online/Sem5",
-        "6th Semester": "https://www.notezy.online/Sem6"
-    }
-
-    keyboard = []
-    for sem, link in semesters.items():
-        keyboard.append([InlineKeyboardButton(sem, url=link)])
+    # Create main menu buttons
+    keyboard = [
+        [InlineKeyboardButton("📚 Semesters", callback_data="semesters")],
+        [InlineKeyboardButton("🏫 Branches", callback_data="branches")],
+        [InlineKeyboardButton("🔍 Search Notes", callback_data="search")],
+        [InlineKeyboardButton("ℹ️ About", callback_data="about")],
+        [InlineKeyboardButton("📝 Feedback", callback_data="feedback")],
+        [InlineKeyboardButton("🆘 Help", callback_data="help")]
+    ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(welcome_text, reply_markup=reply_markup)
+
+
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle callback queries from inline keyboard buttons"""
+    query = update.callback_query
+    await query.answer()
+
+    callback_data = query.data
+
+    if callback_data == "semesters":
+        # Show semester selection
+        text = "📚 Choose your semester to view notes:"
+        
+        semesters = {
+            "1st Semester": "https://www.notezy.online/Chemistrycycle",
+            "2nd Semester": "https://www.notezy.online/Physicscycle", 
+            "3rd Semester": "https://www.notezy.online/Sem3",
+            "4th Semester": "https://www.notezy.online/Sem4",
+            "5th Semester": "https://www.notezy.online/Sem5",
+            "6th Semester": "https://www.notezy.online/Sem6"
+        }
+        
+        keyboard = []
+        for sem, link in semesters.items():
+            keyboard.append([InlineKeyboardButton(sem, url=link)])
+        
+        # Add back button
+        keyboard.append([InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu")])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text, reply_markup=reply_markup)
+
+    elif callback_data == "branches":
+        # Show branches info
+        text = (
+            "🏫 Available Engineering Branches:\n\n"
+            "• Computer Science & Engineering (CSE)\n"
+            "• Information Science & Engineering (ISE)\n"
+            "• Electronics & Communication (ECE)\n"
+            "• AI & ML (AIML)\n"
+            "• AI & DS (AIDS)\n\n"
+            "📖 Notes are available for all branches across all semesters!"
+        )
+        
+        keyboard = [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(text, reply_markup=reply_markup)
+
+    elif callback_data == "search":
+        search_text = (
+            "🔍 *Search for Notes*\n\n"
+            "You can search by:\n"
+            "• Subject codes (e.g., `18CS51`)\n"
+            "• Subject names (e.g., `Data Structures`)\n"
+            "• Semester queries (e.g., `4th sem`)\n\n"
+            "Just type your search query below! 📝"
+        )
+        
+        keyboard = [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(search_text, reply_markup=reply_markup, parse_mode='Markdown')
+
+    elif callback_data == "about":
+        text = (
+            "🤖 About Notezy Bot\n\n"
+            "Notezy Bot is your AI-powered study companion for VTU engineering students!\n\n"
+            "✨ Features:\n"
+            "• Instant search across all subjects\n"
+            "• Access to comprehensive VTU notes\n"
+            "• Organized by semester and branch\n"
+            "• Quick and responsive chat interface\n\n"
+            "📚 Supported:\n"
+            "• All VTU engineering branches\n"
+            "• 1st to 6th semester notes\n"
+            "• Subject codes and names search\n\n"
+            "🌐 Website: https://www.notezy.online\n"
+            "💬 For support: notezyhelp@gmail.com"
+        )
+        
+        keyboard = [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(text, reply_markup=reply_markup)
+
+    elif callback_data == "feedback":
+        text = (
+            "📝 We'd love to hear your feedback!\n\n"
+            "Please share your thoughts, suggestions, or report any issues:\n\n"
+            "💬 Send your feedback to: @notezy_support\n\n"
+            "Your feedback helps us improve Notezy Bot for all students! 🙏"
+        )
+        
+        keyboard = [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(text, reply_markup=reply_markup)
+
+    elif callback_data == "help":
+        text = (
+            "🆘 Help & Commands\n\n"
+            "Available Commands:\n\n"
+            "🚀 /start - Welcome message with menu\n"
+            "📚 /semesters - View all semester options\n"
+            "🏫 /branches - See available engineering branches\n"
+            "🔍 /search <subject> - Search for notes by subject name or code\n"
+            "ℹ️ /about - Learn more about Notezy Bot\n"
+            "📝 /feedback - Share your feedback\n"
+            "🆘 /help - Show this help message\n\n"
+            "💡 Tips:\n"
+            "• Search using subject codes (e.g., 18CS51)\n"
+            "• Or use subject names (e.g., Data Structures)\n"
+            "• Get instant access to VTU notes!\n\n"
+            "🌐 Visit: https://www.notezy.online"
+        )
+        
+        keyboard = [[InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(text, reply_markup=reply_markup)
+
+    elif callback_data == "main_menu":
+        # Return to main menu
+        welcome_text = (
+            "👋 Hello! I am Notezy Bot ☘️\n\n"
+            "Your quick and chat-responsive study companion!\n"
+            "Choose an option below to get started:"
+        )
+
+        keyboard = [
+            [InlineKeyboardButton("📚 Semesters", callback_data="semesters")],
+            [InlineKeyboardButton("🏫 Branches", callback_data="branches")],
+            [InlineKeyboardButton("🔍 Search Notes", callback_data="search")],
+            [InlineKeyboardButton("ℹ️ About", callback_data="about")],
+            [InlineKeyboardButton("📝 Feedback", callback_data="feedback")],
+            [InlineKeyboardButton("🆘 Help", callback_data="help")]
+        ]
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(welcome_text, reply_markup=reply_markup)
 
 
 async def semesters_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -255,20 +391,21 @@ async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Perform sync
         sync_result = db.sync_from_source()
 
-        if sync_result["success"]:
+        if sync_result and sync_result.get("success", False):
             await update.message.reply_text(
                 f"✅ Sync completed successfully!\n\n"
                 f"📊 *Sync Summary:*\n"
                 f"• Duplicates removed: {sync_result.get('duplicates_removed', 0)}\n"
                 f"• New notes: {sync_result['new_notes']}\n"
-                f"• Updated: {sync_result['updated_notes']}\n"
-                f"• Skipped: {sync_result['skipped_notes']}\n"
-                f"• Total in bot DB: {sync_result['total_notes']}",
+                f"• Skipped (existing): {sync_result['existing_notes']}\n"
+                f"• Total source notes: {sync_result['total_source']}\n"
+                f"• Total in bot DB: {db.count_notes()}",
                 parse_mode='Markdown'
             )
         else:
+            error_msg = sync_result.get('error', 'Unknown error') if sync_result else 'Sync returned None'
             await update.message.reply_text(
-                f"❌ Sync failed: {sync_result.get('error', 'Unknown error')}"
+                f"❌ Sync failed: {error_msg}"
             )
 
     except Exception as e:
@@ -434,6 +571,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("about", about_command))
     app.add_handler(CommandHandler("feedback", feedback_command))
     app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CallbackQueryHandler(handle_callback))  # Handle button callbacks
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greeting))  # Handle greetings and search
 
     print("🤖 Notezy Bot is starting...")

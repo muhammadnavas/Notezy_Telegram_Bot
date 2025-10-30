@@ -237,15 +237,9 @@ class NotesDatabase:
         
         self.bulk_insert(notes_list)
     
-    def export_to_json(self, json_file: str):
-        """Export notes to JSON file"""
-        notes = self.get_all_notes()
-        data = {note['full_name']: note['branch_url'] for note in notes}
-        
-        with open(json_file, 'w') as f:
-            json.dump(data, f, indent=4)
-        
-        print(f"✅ Exported {len(data)} notes to {json_file}")
+    def count_notes(self) -> int:
+        """Count total number of notes in the database"""
+        return self.collection.count_documents({})
     
     def remove_duplicates(self):
         """Remove duplicate notes from the database"""
@@ -359,6 +353,7 @@ class NotesDatabase:
             print(f"📊 Skipped {existing_count} existing notes")
             
             return {
+                "success": True,
                 "new_notes": len(notes_list),
                 "existing_notes": existing_count,
                 "total_source": len(source_docs),
@@ -367,7 +362,10 @@ class NotesDatabase:
             
         except Exception as e:
             print(f"❌ Sync failed: {e}")
-            return None
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
 
 if __name__ == "__main__":
