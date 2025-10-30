@@ -247,13 +247,59 @@ class NotesDatabase:
         
         print(f"✅ Exported {len(data)} notes to {json_file}")
     
-    def count_notes(self) -> int:
-        """Get total count of notes"""
-        return self.collection.count_documents({})
+    def remove_duplicates(self):
+        """Remove duplicate notes from the database"""
+        print("🧹 Starting duplicate removal...")
+        
+        # Group documents by their unique combination
+        pipeline = [
+            {
+                "$group": {
+                    "_id": {
+                        "subject_code": "$subject_code",
+                        "subject_name": "$subject_name", 
+                        "semester": "$semester",
+                        "branch": "$branch"
+                    },
+                    "docs": {"$push": "$$ROOT"},
+                    "count": {"$sum": 1}
+                }
+            },
+            {
+                "$match": {
+                    "count": {"$gt": 1}
+                }
+            }
+        ]
+        
+        duplicates = list(self.collection.aggregate(pipeline))
+        total_removed = 0
+        
+        for group in duplicates:
+            # Keep the first document, remove the rest
+            docs = group["docs"]
+            docs_to_remove = docs[1:]  # Skip the first one
+            
+            for doc in docs_to_remove:
+                self.collection.delete_one({"_id": doc["_id"]})
+                total_removed += 1
+        
+        if total_removed > 0:
+            print(f"✅ Removed {total_removed} duplicate notes")
+        else:
+            print("✅ No duplicates found")
+            
+        return total_removed
     
-    def sync_from_source(self, source_db_name="test", source_collection="notes"):
+    def sync_from_source(self, source_db_name="test", source_collection="notes", remove_duplicates_first=True):
         """Sync new notes from source MongoDB database"""
         try:
+            # Remove duplicates first if requested
+            if remove_duplicates_first:
+                print("🧹 Removing existing duplicates before sync...")
+                duplicates_removed = self.remove_duplicates()
+                print(f"📊 Removed {duplicates_removed} duplicates")
+            
             # Connect to source database
             source_db = self.client[source_db_name]
             source_coll = source_db[source_collection]
@@ -315,7 +361,8 @@ class NotesDatabase:
             return {
                 "new_notes": len(notes_list),
                 "existing_notes": existing_count,
-                "total_source": len(source_docs)
+                "total_source": len(source_docs),
+                "duplicates_removed": duplicates_removed if remove_duplicates_first else 0
             }
             
         except Exception as e:

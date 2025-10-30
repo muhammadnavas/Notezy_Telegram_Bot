@@ -152,6 +152,7 @@ async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(
                 f"✅ Sync completed successfully!\n\n"
                 f"📊 *Sync Summary:*\n"
+                f"• Duplicates removed: {sync_result.get('duplicates_removed', 0)}\n"
                 f"• New notes: {sync_result['new_notes']}\n"
                 f"• Updated: {sync_result['updated_notes']}\n"
                 f"• Skipped: {sync_result['skipped_notes']}\n"

@@ -17,6 +17,7 @@ def auto_sync():
     
     if result:
         print("✅ Auto-sync completed!")
+        print(f"   Duplicates removed: {result.get('duplicates_removed', 0)}")
         print(f"   New notes: {result['new_notes']}")
         print(f"   Existing: {result['existing_notes']}")
         print(f"   Total in bot DB: {db.count_notes()}")
@@ -25,7 +26,7 @@ def auto_sync():
         with open("sync_log.txt", "a") as f:
             from datetime import datetime
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"[{timestamp}] Synced {result['new_notes']} new notes\n")
+            f.write(f"[{timestamp}] Removed {result.get('duplicates_removed', 0)} duplicates, synced {result['new_notes']} new notes\n")
     
     return result
 
