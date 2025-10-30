@@ -297,8 +297,13 @@ async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin command to sync notes from source database"""
     try:
-        # Check if user is admin (you can add user ID check here)
+        # Check if user is admin
+        admin_user_id = os.getenv("ADMIN_USER_ID")
         user_id = update.effective_user.id
+        
+        if admin_user_id and str(user_id) != admin_user_id:
+            await update.message.reply_text("❌ Access denied. This command is for administrators only.")
+            return
 
         await update.message.reply_text("🔄 Starting sync process...")
 
