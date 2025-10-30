@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from telegram.error import Conflict
 import os
@@ -555,29 +555,31 @@ if __name__ == "__main__":
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # Add error handler for conflicts
-    async def error_handler(update: Update, context):
-        """Handle Telegram API errors"""
-        if isinstance(context.error, Conflict):
-            print("❌ Conflict error: Multiple bot instances detected")
-            print("💡 Make sure only one bot instance is running")
-            print("🔄 This instance will exit to prevent conflicts")
-            # Exit the application when conflict is detected
-            import sys
-            sys.exit(1)
-        print(f"❌ Update error: {context.error}")
-
-    app.add_error_handler(error_handler)
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("sync", sync_notes))  # Admin sync command
-    app.add_handler(CommandHandler("semesters", semesters_command))
-    app.add_handler(CommandHandler("branches", branches_command))
-    app.add_handler(CommandHandler("about", about_command))
-    app.add_handler(CommandHandler("feedback", feedback_command))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CallbackQueryHandler(handle_callback))  # Handle button callbacks
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greeting))  # Handle greetings and search
+    # Register bot commands immediately after building the app
+    commands = [
+        BotCommand("start", "Welcome message & semester links"),
+        BotCommand("help", "Show help message"),
+        BotCommand("semesters", "List all semesters with links"),
+        BotCommand("branches", "List all VTU branches"),
+        BotCommand("about", "Info about Notezy Bot"),
+        BotCommand("feedback", "Send feedback"),
+        BotCommand("sync", "Sync notes from database (Admin only)"),
+    ]
+    
+    # Set commands synchronously
+    import asyncio
+    async def setup_commands():
+        try:
+            await app.bot.set_my_commands(commands)
+            print("✅ Bot commands registered successfully")
+            # Verify commands were set
+            current_commands = await app.bot.get_my_commands()
+            print(f"📋 Current commands: {[cmd.command for cmd in current_commands]}")
+        except Exception as e:
+            print(f"⚠️ Failed to register commands: {e}")
+    
+    # Run command setup
+    asyncio.run(setup_commands())
 
     print("🤖 Notezy Bot is starting...")
     print("💡 Use /sync command to update notes from database")

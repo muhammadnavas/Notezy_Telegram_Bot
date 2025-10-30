@@ -1,4 +1,4 @@
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 from telegram.error import Conflict
 import os
@@ -654,6 +654,32 @@ def main():
     application = ApplicationBuilder().token(BOT_TOKEN).build()
     print("✅ Telegram application created")
 
+    # Register bot commands immediately after building the app
+    commands = [
+        BotCommand("start", "Welcome message & semester links"),
+        BotCommand("help", "Show help message"),
+        BotCommand("semesters", "List all semesters with links"),
+        BotCommand("branches", "List all VTU branches"),
+        BotCommand("about", "Info about Notezy Bot"),
+        BotCommand("feedback", "Send feedback"),
+        BotCommand("sync", "Sync notes from database (Admin only)"),
+    ]
+    
+    # Set commands synchronously
+    import asyncio
+    async def setup_commands():
+        try:
+            await application.bot.set_my_commands(commands)
+            print("✅ Bot commands registered successfully")
+            # Verify commands were set
+            current_commands = await application.bot.get_my_commands()
+            print(f"📋 Current commands: {[cmd.command for cmd in current_commands]}")
+        except Exception as e:
+            print(f"⚠️ Failed to register commands: {e}")
+    
+    # Run command setup
+    asyncio.run(setup_commands())
+
     # Add error handler for conflicts
     async def error_handler(update: Update, context):
         """Handle Telegram API errors"""
@@ -700,6 +726,3 @@ def main():
     # Start the web server
     print("🚀 Starting web server...")
     web.run_app(app, host="0.0.0.0", port=PORT)
-
-if __name__ == "__main__":
-    main()
