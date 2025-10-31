@@ -12,6 +12,9 @@ httpx==0.27.2
 # Web server for webhook mode
 aiohttp==3.9.1
 
+# Grok AI integration
+xai-grok==0.1.0
+
 # Optional database connectors (install only if needed)
 # mysql-connector-python==8.0.33
 # psycopg2-binary==2.9.6

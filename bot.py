@@ -12,6 +12,28 @@ load_dotenv()
 # Database will be initialized in main() to avoid import-time connections
 db = None
 
+# Grok AI integration
+try:
+    # Try different possible import names for Grok
+    try:
+        from xai_grok import Grok
+    except ImportError:
+        try:
+            from grok import Grok
+        except ImportError:
+            try:
+                import grok as grok_module
+                Grok = grok_module.Grok
+            except ImportError:
+                raise ImportError("Grok library not found")
+    
+    grok_available = True
+    print("✅ Grok AI integration loaded successfully")
+except ImportError:
+    grok_available = False
+    Grok = None
+    print("⚠️ Grok library not available. Advanced AI features will be disabled.")
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Welcome message with main menu buttons"""
     welcome_text = (
@@ -262,8 +284,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(text)
 
+
 async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message_text = update.message.text.lower().strip()
+    message_text = update.message.text.strip()
 
     # Define semester query patterns
     semester_patterns = [
@@ -419,8 +442,49 @@ async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.message.text.strip()
 
-    # Search in database
-    search_result = db.search_notes(query, limit=50)
+    # Use Grok to analyze and improve the query if available
+    enhanced_query = query
+    if grok_available and len(query) > 2:
+        try:
+            # Use Grok to analyze the query and extract key search terms
+            client = Grok(api_key=os.getenv("GROK_API_KEY"))
+
+            analysis_prompt = f"""
+            Analyze this user query for a VTU engineering notes search: "{query}"
+
+            Extract and return only the key subject names, codes, or technical terms that should be used for database search.
+            Focus on VTU syllabus subjects, programming languages, algorithms, data structures, engineering concepts.
+            Return a comma-separated list of search terms, or the original query if no specific terms can be identified.
+            Keep it concise and relevant to engineering education.
+            """
+
+            response = client.chat.completions.create(
+                model="grok-beta",
+                messages=[
+                    {"role": "system", "content": "You are a query analyzer for VTU engineering notes search. Extract key technical terms and subject names."},
+                    {"role": "user", "content": analysis_prompt}
+                ],
+                max_tokens=100,
+                temperature=0.1
+            )
+
+            grok_analysis = response.choices[0].message.content.strip()
+
+            # Use Grok's analysis if it's different and meaningful
+            if grok_analysis and len(grok_analysis) > len(query) * 0.5:
+                # Try searching with Grok-enhanced query first
+                test_result = db.search_notes(grok_analysis, limit=5)
+                if test_result["type"] in ["exact", "partial"]:
+                    enhanced_query = grok_analysis
+                    print(f"🔍 Enhanced query: '{query}' -> '{enhanced_query}'")
+
+        except Exception as e:
+            # If Grok analysis fails, use original query
+            print(f"⚠️ Grok query analysis failed: {e}")
+            enhanced_query = query
+
+    # Search in database with enhanced query
+    search_result = db.search_notes(enhanced_query, limit=50)
 
     if search_result["type"] == "exact":
         # Found exact matches
@@ -455,6 +519,10 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         response_text = "\n\n".join(formatted_results[:5])  # Max 5 branch links
 
+        # Add note if query was enhanced
+        if enhanced_query != query:
+            response_text = f"🤖 *AI-enhanced search for: '{query}'*\n\n" + response_text
+
         await update.message.reply_text(
             response_text,
             parse_mode='Markdown',
@@ -483,6 +551,10 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
         response_text = "\n\n".join(response_parts)
+
+        # Add note if query was enhanced
+        if enhanced_query != query:
+            response_text = f"🤖 *AI-enhanced search for: '{query}'*\n\n" + response_text
 
         await update.message.reply_text(
             response_text,
@@ -537,11 +609,19 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # No matches at all
         total_notes = db.count_notes()
-        await update.message.reply_text(
+        response_text = (
             f"❌ *{query}* not found in our database.\n\n"
             f"💡 *Tip:* Search by subject code (e.g., 18CS51) or name (e.g., Data Structures)\n"
             f"📚 Total notes available: {total_notes}\n\n"
-            f"🔍 Try searching for a different subject or semester!",
+            f"🔍 Try searching for a different subject or semester!"
+        )
+
+        # Add note if query was enhanced
+        if enhanced_query != query:
+            response_text = f"🤖 *AI-enhanced search for: '{query}'*\n\n" + response_text
+
+        await update.message.reply_text(
+            response_text,
             parse_mode='Markdown'
         )
 
