@@ -124,7 +124,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             "📝 We'd love to hear your feedback!\n\n"
             "Please share your thoughts, suggestions, or report any issues:\n\n"
-            "💬 Send your feedback to: @notezy_support\n\n"
+            "💬 Send your feedback to: notezyhelp@gmail.com\n\n"
             "Your feedback helps us improve Notezy Bot for all students! 🙏"
         )
         
@@ -335,6 +335,9 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Search in database
     search_result = db.search_notes(query, limit=50)
+    response_parts = [
+            f"Searching for *{query}*, Please Wait...\n",
+        ]
 
     if search_result["type"] == "exact":
         # Found exact matches
