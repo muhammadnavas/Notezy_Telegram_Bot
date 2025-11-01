@@ -16,7 +16,8 @@ db = None
 # Sync state management to prevent multiple simultaneous syncs
 sync_in_progress = False
 last_sync_time = 0
-sync_disabled = False  # Emergency disable if too many rapid calls
+processed_updates = set()  # Track processed update IDs to prevent duplicates
+sync_call_count = 0  # Track sync attempts to detect loops
 
 # AI features removed - keeping bot lightweight and focused
 
@@ -287,52 +288,54 @@ async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await search(update, context)
 
 async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin command to sync notes from source database"""
-    global sync_in_progress, last_sync_time
+    """Admin command to sync notes from source database with recursion protection"""
+    global sync_in_progress, last_sync_time, sync_call_count
     
     try:
-        # Enhanced logging to debug repeated triggers
-        print(f"🔍 SYNC DEBUG: Function called by user {update.effective_user.id} ({update.effective_user.first_name})")
-        print(f"🔍 SYNC DEBUG: Message text: {update.message.text if update.message else 'No message'}")
-        print(f"🔍 SYNC DEBUG: Update ID: {update.update_id}")
+        # Increment call count for loop detection
+        sync_call_count += 1
         
-        # Emergency disable check
-        global sync_disabled
-        if sync_disabled:
-            await update.message.reply_text("🚫 Sync temporarily disabled due to repeated automatic triggers. Contact admin.")
+        # Anti-recursion protection
+        if sync_call_count > 3:
+            print(f"🚨 SYNC LOOP DETECTED: {sync_call_count} calls - emergency stop")
+            await update.message.reply_text(
+                "🚫 **SYNC LOOP DETECTED**\n\n"
+                "Multiple sync calls detected. Command temporarily blocked.\n"
+                "Please wait 60 seconds before trying again."
+            )
             return
+        
+        # Enhanced logging for debugging
+        print(f"� SYNC CALL #{sync_call_count}: User {update.effective_user.id} ({update.effective_user.first_name})")
+        print(f"🔍 Message: '{update.message.text}' | Update ID: {update.update_id}")
         
         # Check if user is admin
         admin_user_id = os.getenv("ADMIN_USER_ID")
         user_id = update.effective_user.id
         
         if admin_user_id and str(user_id) != admin_user_id:
-            print(f"🔍 SYNC DEBUG: Access denied for non-admin user {user_id}")
+            print(f"🔍 Access denied for non-admin user {user_id}")
             await update.message.reply_text("❌ Access denied. This command is for administrators only.")
+            sync_call_count -= 1  # Reset count for failed auth
             return
 
-        # Check rate limiting - prevent sync calls within 30 seconds (increased from 5)
+        # Rate limiting - prevent sync calls within 60 seconds
         import time
         current_time = time.time()
         time_since_last = current_time - last_sync_time
-        if time_since_last < 30:
-            remaining_time = int(30 - time_since_last)
-            print(f"🔍 SYNC DEBUG: Rate limited - {remaining_time}s remaining")
-            
-            # If multiple rapid calls, disable sync temporarily
-            if time_since_last < 5:  # Less than 5 seconds - very suspicious
-                sync_disabled = True
-                print("🚨 EMERGENCY: Disabling sync due to rapid repeated calls")
-                await update.message.reply_text("🚫 Sync disabled - automatic triggering detected!")
-                return
-            
+        
+        if time_since_last < 60:
+            remaining_time = int(60 - time_since_last)
+            print(f"🔍 Rate limited - {remaining_time}s remaining")
             await update.message.reply_text(f"⏳ Please wait {remaining_time} seconds before triggering sync again.")
+            sync_call_count -= 1  # Reset count for rate limit
             return
         
         # Check if sync is already in progress
         if sync_in_progress:
-            print(f"⚠️ Sync already in progress - rejecting request from user {user_id}")
+            print(f"⚠️ Sync already in progress - rejecting request")
             await update.message.reply_text("⏳ Sync already in progress. Please wait...")
+            sync_call_count -= 1  # Reset count for concurrent call
             return
         
         # Set sync in progress and update timestamp
@@ -358,16 +361,16 @@ async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             error_msg = sync_result.get('error', 'Unknown error') if sync_result else 'Sync returned None'
-            await update.message.reply_text(
-                f"❌ Sync failed: {error_msg}"
-            )
+            await update.message.reply_text(f"❌ Sync failed: {error_msg}")
 
     except Exception as e:
+        print(f"❌ Error during sync: {e}")
         await update.message.reply_text(f"❌ Error during sync: {str(e)}")
     finally:
         # Reset sync state
         sync_in_progress = False
-        print("🔄 Sync state reset - ready for next sync")
+        sync_call_count = max(0, sync_call_count - 1)  # Decrement but don't go negative
+        print(f"🔄 Sync state reset - call count: {sync_call_count}")
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Get query from command args if available, otherwise from message text
@@ -659,12 +662,27 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def webhook_handler(request):
     """Handle incoming webhook updates from Telegram"""
+    global processed_updates
+    
     try:
         print("📨 Received webhook request")
         data = await request.json()
         print(f"📦 Update data keys: {list(data.keys()) if isinstance(data, dict) else 'not dict'}")
         update = Update.de_json(data, application.bot)
-        print("🔄 Processing update...")
+        
+        # Check for duplicate updates to prevent recursive processing
+        update_id = update.update_id
+        if update_id in processed_updates:
+            print(f"⚠️ Duplicate update {update_id} detected - skipping")
+            return web.Response(text="DUPLICATE", status=200)
+        
+        # Add to processed updates (keep only last 100 to prevent memory issues)
+        processed_updates.add(update_id)
+        if len(processed_updates) > 100:
+            # Remove oldest entries
+            processed_updates = set(list(processed_updates)[-50:])
+        
+        print(f"🔄 Processing update {update_id}...")
         
         # Make sure application is initialized
         if not hasattr(application, '_initialized') or not application._initialized:
@@ -672,7 +690,7 @@ async def webhook_handler(request):
             return web.Response(text="INITIALIZING", status=503)
         
         await application.process_update(update)
-        print("✅ Update processed successfully")
+        print(f"✅ Update {update_id} processed successfully")
         return web.Response(text="OK")
     except Exception as e:
         print(f"❌ Webhook error: {e}")
@@ -707,7 +725,7 @@ async def on_startup(app):
             BotCommand("branches", "List all VTU branches"),
             BotCommand("about", "Info about Notezy Bot"),
             BotCommand("feedback", "Send feedback"),
-            BotCommand("sync", "Sync notes from database (Admin only)"),
+            BotCommand("sync", "Sync notes from database (Admin only)"),  # PROTECTED
         ]
         
         try:
@@ -729,6 +747,21 @@ async def on_startup(app):
         import traceback
         traceback.print_exc()
         print("⚠️ Bot may not work correctly, but server will continue running...")
+
+async def reset_sync_counter():
+    """Background task to reset sync call count if stuck"""
+    import asyncio
+    import time
+    
+    global sync_call_count, last_sync_time
+    
+    while True:
+        await asyncio.sleep(120)  # Check every 2 minutes
+        
+        current_time = time.time()
+        if current_time - last_sync_time > 180 and sync_call_count > 0:  # No sync for 3 minutes
+            print(f"🔄 Auto-resetting stuck sync call count from {sync_call_count} to 0")
+            sync_call_count = 0
 
 def main():
     """Main function for webhook bot"""
@@ -790,10 +823,11 @@ def main():
     application.add_handler(CommandHandler("branches", branches_command))
     application.add_handler(CommandHandler("about", about_command))
     application.add_handler(CommandHandler("feedback", feedback_command))
+    # Sync handler with enhanced protection mechanisms
     application.add_handler(CommandHandler("sync", sync_notes))
     application.add_handler(CallbackQueryHandler(handle_callback))  # Handle button callbacks
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, greeting))  # Handle greetings and search
-    print("✅ Handlers added")
+    print("✅ Handlers added (SYNC ENABLED with protection)")
 
     # Create aiohttp web application
     print("🌐 Creating aiohttp web application...")
