@@ -14,6 +14,7 @@ load_dotenv()
 db = None
 
 # Sync functionality removed - bot now focused on search and help only
+processed_updates = set()  # Track processed update IDs to prevent duplicates
 
 # AI features removed - keeping bot lightweight and focused
 
