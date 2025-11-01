@@ -516,40 +516,53 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Found exact matches
         results = search_result["results"]
 
-        # Group results by branch URL to avoid duplicates
-        branch_groups = {}
+        # Group results by subject to avoid duplicates, then organize by semester and branch
+        subject_groups = {}
         for note in results:
-            url = note['branch_url']
-            if url not in branch_groups:
-                branch_groups[url] = {
-                    'subjects': [],
+            subject_key = note['full_name']  # Use subject name as key to deduplicate
+            if subject_key not in subject_groups:
+                subject_groups[subject_key] = {
+                    'branches': [],
                     'semester': note['semester'],
-                    'branch': note['branch']
+                    'subject_code': note.get('subject_code', ''),
+                    'subject_name': note.get('subject_name', '')
                 }
-            branch_groups[url]['subjects'].append(note['full_name'])
+            
+            # Add branch info if not already present
+            branch_info = {
+                'branch': note['branch'],
+                'branch_url': note['branch_url']
+            }
+            if branch_info not in subject_groups[subject_key]['branches']:
+                subject_groups[subject_key]['branches'].append(branch_info)
 
-        # Format exact match results
+        # Format exact match results - show all subjects found
         formatted_results = []
-        total_branches = len(branch_groups)
+        total_subjects = len(subject_groups)
         
-        for branch_url, data in list(branch_groups.items())[:10]:  # Show up to 10 branches
-            full_url = f"https://www.notezy.online{branch_url}"
-            subjects_text = ", ".join(data['subjects'][:8])  # Show more subjects per branch
-            if len(data['subjects']) > 8:
-                subjects_text += f" +{len(data['subjects']) - 8} more"
+        for subject_name, data in subject_groups.items():
+            # Create list of branches for this subject
+            branch_names = [branch['branch'] for branch in data['branches']]
+            branch_urls = [f"https://www.notezy.online{branch['branch_url']}" for branch in data['branches']]
+            
+            # Format branch list
+            if len(branch_names) <= 3:
+                branches_text = ", ".join(branch_names)
+                # Use first branch URL for the link
+                main_url = branch_urls[0]
+            else:
+                branches_text = ", ".join(branch_names[:3]) + f" +{len(branch_names)-3} more branches"
+                main_url = branch_urls[0]
 
             formatted_results.append(
-                f"🎯 *Found: {query}*\n"
-                f"🏫 *{data['semester']} - {data['branch']}*\n"
-                f"📚 Subjects: {subjects_text}\n"
-                f"🔗 [View Notes]({full_url})"
+                f"📚 *{subject_name}*\n"
+                f"📖 {data['semester']}\n" 
+                f"🏫 Available in: {branches_text}\n"
+                f"🔗 [View Notes]({main_url})"
             )
 
-        response_text = "\n\n".join(formatted_results)
-        
-        # Add summary if there are more branches
-        if total_branches > 10:
-            response_text += f"\n\n📊 *Showing 10 of {total_branches} branches with this subject*"
+        response_text = f"🔍 *Found {total_subjects} subject(s) matching '{query}':*\n\n"
+        response_text += "\n\n".join(formatted_results)
 
         # Look for related subjects in the same semester(s) for additional context
         if results:
