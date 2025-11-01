@@ -314,7 +314,7 @@ async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     """
 
                     response = client.chat.completions.create(
-                        model="llama-3.1-70b-versatile",
+                        model="llama-3.1-8b-instant",
                         messages=[
                             {"role": "system", "content": "You are a friendly AI assistant for VTU engineering students. Generate warm, helpful greetings."},
                             {"role": "user", "content": greeting_prompt}
@@ -406,7 +406,32 @@ async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Error during sync: {str(e)}")
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.message.text.strip()
+    # Get query from command args if available, otherwise from message text
+    if context.args:
+        # Called as /search query - use the args
+        query = " ".join(context.args).strip()
+    else:
+        # Called as direct message - use full text but remove /search prefix if present
+        query = update.message.text.strip()
+        if query.lower().startswith('/search '):
+            query = query[8:].strip()  # Remove '/search ' prefix
+
+    if not query:
+        await update.message.reply_text(
+            "🔍 Please provide a search query!\n\n"
+            "Examples:\n"
+            "• `/search bcs301`\n"
+            "• `/search data structures`\n"
+            "• Just type: `mathematics`",
+            parse_mode='Markdown'
+        )
+        return
+
+    # Send searching message to user
+    search_message = await update.message.reply_text(
+        f"🔍 *Searching for '{query}'...*\n⏳ Please wait...",
+        parse_mode='Markdown'
+    )
 
     # Use Grok to analyze and improve the query if available
     enhanced_query = query
@@ -421,14 +446,24 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             analysis_prompt = f"""
             Analyze this user query for a VTU engineering notes search: "{query}"
 
-            Extract and return only the key subject names, codes, or technical terms that should be used for database search.
+            Extract and return ONLY simple alphanumeric terms and subject codes.
             Focus on VTU syllabus subjects, programming languages, algorithms, data structures, engineering concepts.
-            Return a comma-separated list of search terms, or the original query if no specific terms can be identified.
-            Keep it concise and relevant to engineering education.
+            
+            Rules:
+            - Return only letters, numbers, and spaces
+            - NO special characters or punctuation
+            - Return single words or simple phrases
+            - If uncertain, return the original query as-is
+            
+            Examples:
+            - "programming" becomes "programming"  
+            - "data structures" becomes "data structures"
+            - "BCS301" becomes "BCS301"
+            - complex terms become simple terms
             """
 
             response = client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are a query analyzer for VTU engineering notes search. Extract key technical terms and subject names."},
                     {"role": "user", "content": analysis_prompt}
@@ -439,13 +474,24 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             grok_analysis = response.choices[0].message.content.strip()
 
-            # Use Grok's analysis if it's different and meaningful
-            if grok_analysis and len(grok_analysis) > len(query) * 0.5:
-                # Try searching with Grok-enhanced query first
-                test_result = db.search_notes(grok_analysis, limit=5)
-                if test_result["type"] in ["exact", "partial"]:
-                    enhanced_query = grok_analysis
-                    print(f"🔍 Enhanced query: '{query}' -> '{enhanced_query}'")
+            # Sanitize the AI response to remove problematic characters
+            import re
+            # Keep only alphanumeric characters, spaces, and hyphens
+            sanitized_analysis = re.sub(r'[^a-zA-Z0-9\s\-]', ' ', grok_analysis).strip()
+            # Remove multiple spaces
+            sanitized_analysis = re.sub(r'\s+', ' ', sanitized_analysis)
+
+            # Use sanitized analysis if it's different and meaningful
+            if sanitized_analysis and len(sanitized_analysis) > 2 and sanitized_analysis.lower() != query.lower():
+                # Validate the enhanced query to avoid regex errors
+                try:
+                    test_result = db.search_notes(sanitized_analysis, limit=5)
+                    if test_result["type"] in ["exact", "partial"]:
+                        enhanced_query = sanitized_analysis
+                        print(f"🔍 Enhanced query: '{query}' -> '{enhanced_query}'")
+                except Exception as validation_error:
+                    print(f"⚠️ Enhanced query validation failed: {validation_error}")
+                    enhanced_query = query
 
         except Exception as e:
             # If Grok analysis fails, use original query
@@ -453,7 +499,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             enhanced_query = query
 
     # Search in database with enhanced query
-    search_result = db.search_notes(enhanced_query, limit=50)
+    search_result = db.search_notes(enhanced_query, limit=100)
 
     if search_result["type"] == "exact":
         # Found exact matches
@@ -471,13 +517,15 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 }
             branch_groups[url]['subjects'].append(note['full_name'])
 
-        # Format results
+        # Format exact match results
         formatted_results = []
-        for branch_url, data in branch_groups.items():
+        total_branches = len(branch_groups)
+        
+        for branch_url, data in list(branch_groups.items())[:10]:  # Show up to 10 branches
             full_url = f"https://www.notezy.online{branch_url}"
-            subjects_text = ", ".join(data['subjects'][:5])  # Show max 5 subjects
-            if len(data['subjects']) > 5:
-                subjects_text += f" +{len(data['subjects']) - 5} more"
+            subjects_text = ", ".join(data['subjects'][:8])  # Show more subjects per branch
+            if len(data['subjects']) > 8:
+                subjects_text += f" +{len(data['subjects']) - 8} more"
 
             formatted_results.append(
                 f"🎯 *Found: {query}*\n"
@@ -486,13 +534,17 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"🔗 [View Notes]({full_url})"
             )
 
-        response_text = "\n\n".join(formatted_results[:5])  # Max 5 branch links
+        response_text = "\n\n".join(formatted_results)
+        
+        # Add summary if there are more branches
+        if total_branches > 10:
+            response_text += f"\n\n📊 *Showing 10 of {total_branches} branches with this subject*"
 
         # Add note if query was enhanced
         if enhanced_query != query:
             response_text = f"🤖 *AI-enhanced search for: '{query}'*\n\n" + response_text
 
-        await update.message.reply_text(
+        await search_message.edit_text(
             response_text,
             parse_mode='Markdown',
             disable_web_page_preview=True
@@ -501,31 +553,46 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif search_result["type"] == "partial":
         # Found partial matches with scoring
         results = search_result["results"]
+        total_matches = search_result.get("total_matches", len(results))
 
-        # Format response for partial matches
+        # Format response for partial matches - show more comprehensive results
         response_parts = [
-            f"🔍 *Partial matches for '{query}':*\n"
+            f"🔍 *Found {total_matches} matches for '{query}':*\n"
         ]
 
-        for branch_data in results[:5]:  # Max 5 branches
+        # Show more branches (up to 8 instead of 5)
+        for i, branch_data in enumerate(results[:8]):
             full_url = f"https://www.notezy.online{branch_data['branch_url']}"
-            subjects_text = ", ".join([subj['full_name'] for subj in branch_data['subjects'][:5]])
-            if branch_data['total_subjects'] > 5:
-                subjects_text += f" +{branch_data['total_subjects'] - 5} more"
+            
+            # Show more subjects per branch (up to 8 instead of 5)
+            subjects_list = [subj['full_name'] for subj in branch_data['subjects'][:8]]
+            subjects_text = ", ".join(subjects_list)
+            
+            remaining = branch_data['total_subjects'] - len(subjects_list)
+            if remaining > 0:
+                subjects_text += f" +{remaining} more"
 
             response_parts.append(
                 f"🏫 *{branch_data['semester']} - {branch_data['branch']}*\n"
-                f"📚 Found: {subjects_text}\n"
+                f"📚 Subjects: {subjects_text}\n"
                 f"🔗 [View Notes]({full_url})"
             )
 
         response_text = "\n\n".join(response_parts)
+        
+        # Add summary if there are more results
+        if len(results) > 8:
+            response_text += f"\n\n📊 *Showing top 8 of {len(results)} matching branches*"
+        
+        # Add search tips for better results
+        if total_matches > 20:
+            response_text += f"\n\n💡 *Tip: Try more specific terms like subject codes (e.g., BCS301) for exact matches*"
 
         # Add note if query was enhanced
         if enhanced_query != query:
             response_text = f"🤖 *AI-enhanced search for: '{query}'*\n\n" + response_text
 
-        await update.message.reply_text(
+        await search_message.edit_text(
             response_text,
             parse_mode='Markdown',
             disable_web_page_preview=True
@@ -569,7 +636,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         response_text = "\n\n".join(response_parts)
 
-        await update.message.reply_text(
+        await search_message.edit_text(
             response_text,
             parse_mode='Markdown',
             disable_web_page_preview=True
@@ -602,7 +669,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 """
 
                 response = client.chat.completions.create(
-                    model="llama-3.1-70b-versatile",
+                    model="llama-3.1-8b-instant",
                     messages=[
                         {"role": "system", "content": "You are a helpful study assistant for VTU engineering students. Provide practical search suggestions."},
                         {"role": "user", "content": suggestion_prompt}
@@ -642,7 +709,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if enhanced_query != query:
             response_text = f"🤖 *AI-enhanced search for: '{query}'*\n\n" + response_text
 
-        await update.message.reply_text(
+        await search_message.edit_text(
             response_text,
             parse_mode='Markdown'
         )
@@ -728,7 +795,7 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """
 
             response = client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are an encouraging study mentor for engineering students. Write motivating messages about educational tools."},
                     {"role": "user", "content": about_prompt}
@@ -790,7 +857,7 @@ async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """
 
             response = client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are a feedback specialist. Generate specific, actionable feedback questions for educational tools."},
                     {"role": "user", "content": feedback_prompt}
@@ -859,7 +926,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """
 
             response = client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are a study coach for VTU engineering students. Provide practical, personalized tips."},
                     {"role": "user", "content": tips_prompt}
