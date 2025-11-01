@@ -4,6 +4,7 @@ A Telegram bot for searching and accessing course notes by subject name or code 
 
 ## Features
 - 🔍 **Advanced Search** - Smart search with scoring and fuzzy matching
+- 🤖 **AI-Powered Enhancement** - Grok AI integration for intelligent responses
 - 📘 Quick access to study materials via branch page links
 - 👋 **Smart Greetings** - Recognizes 40+ greeting patterns in multiple languages
 - 📚 **Semester Queries** - Direct links to semester pages (e.g., "4th sem", "for 3rd sem")
@@ -11,6 +12,13 @@ A Telegram bot for searching and accessing course notes by subject name or code 
 - 🚀 **Fast and responsive** with MongoDB backend
 - 🌐 Integration with Notezy.online
 - ☁️ **Render Deployment** - Ready for cloud deployment
+
+### 🤖 AI Features
+- **Query Enhancement** - AI analyzes and improves search queries for better results
+- **Personalized Greetings** - Context-aware greetings based on time and user
+- **Smart Suggestions** - AI-generated alternatives when searches return no results
+- **Study Tips** - Personalized study advice for engineering students
+- **Feedback Prompts** - AI-generated specific questions to improve the bot
 
 ## Setup
 
@@ -22,6 +30,7 @@ A Telegram bot for searching and accessing course notes by subject name or code 
 2. **Configure environment:**
    - Copy `.env.example` to `.env` and add your credentials
    - Set `BOT_TOKEN` and `MONGODB_URI`
+   - Optional: Set `GROK_API_KEY` for AI features (get from https://console.groq.com)
 
 3. **Import notes from MongoDB:**
    ```bash
@@ -29,7 +38,12 @@ A Telegram bot for searching and accessing course notes by subject name or code 
    # Choose option 6 (MongoDB import)
    ```
 
-4. **Run the bot:**
+4. **Test AI integration (optional):**
+   ```bash
+   python test_ai.py
+   ```
+
+5. **Run the bot:**
    ```bash
    python bot.py
    ```
@@ -105,6 +119,7 @@ Webhook deployment prevents multiple instance conflicts and is more reliable for
    - `BOT_TOKEN` - Your Telegram bot token
    - `MONGODB_URI` - MongoDB connection string
    - `WEBHOOK_URL` - Your Render service URL (will be auto-generated)
+   - `GROK_API_KEY` - Optional: Groq API key for AI features
 5. **Deploy** - The `render.yaml` file handles the webhook setup automatically!
 
 ### Option 2: Polling Deployment (Development/Testing)
@@ -171,6 +186,32 @@ The bot uses these branch URLs:
 - `https://www.notezy.online/Sem5/mechanical`
 - etc.
 
+## Environment Variables
+
+Create a `.env` file in the project root with the following variables:
+
+```env
+# Required
+BOT_TOKEN=your_telegram_bot_token
+MONGODB_URI=your_mongodb_connection_string
+
+# Optional - for AI features (Groq)
+GROK_API_KEY=your_groq_api_key
+
+# For webhook deployment (Render)
+RENDER_EXTERNAL_HOSTNAME=your-app.render.com
+PORT=8080
+
+# For admin features
+ADMIN_USER_ID=your_telegram_user_id
+```
+
+### Getting API Keys
+
+- **BOT_TOKEN**: Create a bot via [@BotFather](https://t.me/botfather) on Telegram
+- **MONGODB_URI**: Get from [MongoDB Atlas](https://cloud.mongodb.com) (free tier available)
+- **GROK_API_KEY**: Get from [Groq Console](https://console.groq.com) (optional, for AI features)
+
 ## Tips
 
 - Search is case-insensitive
@@ -179,6 +220,7 @@ The bot uses these branch URLs:
 - Sync automatically handles new notes without downtime
 - Bot responds to greetings in multiple languages
 - Semester queries provide direct access to branch pages
+- AI features enhance user experience but bot works without them
 
 ## Future Enhancements
 - Webhook-based auto-sync

@@ -247,7 +247,7 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             client = OpenAI(
                 api_key=os.getenv("GROK_API_KEY"),
-                base_url="https://api.x.ai/v1"
+                base_url="https://api.groq.com/openai/v1"
             )
 
             about_prompt = f"""
@@ -260,7 +260,7 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """
 
             response = client.chat.completions.create(
-                model="llama3-8b-8192",
+                model="llama-3.1-70b-versatile",
                 messages=[
                     {"role": "system", "content": "You are an encouraging study mentor for engineering students. Write motivating messages about educational tools."},
                     {"role": "user", "content": about_prompt}
@@ -302,7 +302,7 @@ async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             client = OpenAI(
                 api_key=os.getenv("GROK_API_KEY"),
-                base_url="https://api.x.ai/v1"
+                base_url="https://api.groq.com/openai/v1"
             )
 
             feedback_prompt = f"""
@@ -316,7 +316,7 @@ async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """
 
             response = client.chat.completions.create(
-                model="llama3-8b-8192",
+                model="llama-3.1-70b-versatile",
                 messages=[
                     {"role": "system", "content": "You are a feedback specialist. Generate specific, actionable feedback questions for educational tools."},
                     {"role": "user", "content": feedback_prompt}
@@ -370,7 +370,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             client = OpenAI(
                 api_key=os.getenv("GROK_API_KEY"),
-                base_url="https://api.x.ai/v1"
+                base_url="https://api.groq.com/openai/v1"
             )
 
             tips_prompt = f"""
@@ -381,7 +381,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """
 
             response = client.chat.completions.create(
-                model="llama3-8b-8192",
+                model="llama-3.1-70b-versatile",
                 messages=[
                     {"role": "system", "content": "You are a study coach for VTU engineering students. Provide practical, personalized tips."},
                     {"role": "user", "content": tips_prompt}
@@ -514,10 +514,10 @@ async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     else:
                         time_context = "night"
 
-                    # Use Grok to generate personalized greeting
+                    # Use Groq to generate personalized greeting
                     client = OpenAI(
-                        api_key=os.getenv("GROK_API_KEY"),
-                        base_url="https://api.x.ai/v1"
+                        api_key=os.getenv("GROK_API_KEY"),  # Actually using Groq API key
+                        base_url="https://api.groq.com/openai/v1"
                     )
 
                     greeting_prompt = f"""
@@ -535,7 +535,7 @@ async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     """
 
                     response = client.chat.completions.create(
-                        model="llama3-8b-8192",
+                        model="llama-3.1-70b-versatile",
                         messages=[
                             {"role": "system", "content": "You are a friendly AI assistant for VTU engineering students. Generate warm, helpful greetings."},
                             {"role": "user", "content": greeting_prompt}
@@ -620,7 +620,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Use Grok to analyze the query and extract key search terms
             client = OpenAI(
                 api_key=os.getenv("GROK_API_KEY"),
-                base_url="https://api.x.ai/v1"
+                base_url="https://api.groq.com/openai/v1"
             )
 
             analysis_prompt = f"""
@@ -633,7 +633,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """
 
             response = client.chat.completions.create(
-                model="llama3-8b-8192",
+                model="llama-3.1-70b-versatile",
                 messages=[
                     {"role": "system", "content": "You are a query analyzer for VTU engineering notes search. Extract key technical terms and subject names."},
                     {"role": "user", "content": analysis_prompt}
@@ -789,7 +789,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Use Grok to generate helpful suggestions
                 client = OpenAI(
                     api_key=os.getenv("GROK_API_KEY"),
-                    base_url="https://api.x.ai/v1"
+                    base_url="https://api.groq.com/openai/v1"
                 )
 
                 suggestion_prompt = f"""
@@ -807,7 +807,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 """
 
                 response = client.chat.completions.create(
-                    model="llama3-8b-8192",
+                    model="llama-3.1-70b-versatile",
                     messages=[
                         {"role": "system", "content": "You are a helpful study assistant for VTU engineering students. Provide practical search suggestions."},
                         {"role": "user", "content": suggestion_prompt}
@@ -853,6 +853,15 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 if __name__ == "__main__":
+    # Initialize database here to avoid import-time connections
+    print("📊 Initializing database...")
+    try:
+        db = NotesDatabase()
+        print("✅ Database initialized successfully")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        raise
+
     # Get bot token from environment variable
     BOT_TOKEN = os.getenv("BOT_TOKEN")
 
