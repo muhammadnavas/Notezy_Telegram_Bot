@@ -895,10 +895,9 @@ async def webhook_handler(request):
         print("🔄 Processing update...")
         
         # Make sure application is initialized
-        if not application._initialized:
-            print("⚠️ Application not initialized, initializing now...")
-            await application.initialize()
-            print("✅ Application initialized in webhook handler")
+        if not hasattr(application, '_initialized') or not application._initialized:
+            print("⚠️ Application not initialized, skipping update...")
+            return web.Response(text="INITIALIZING", status=503)
         
         await application.process_update(update)
         print("✅ Update processed successfully")
@@ -911,29 +910,53 @@ async def webhook_handler(request):
 
 async def health_check(request):
     """Health check endpoint for Render"""
-    return web.Response(text="OK")
+    status = "OK"
+    if hasattr(application, '_initialized') and application._initialized:
+        status += " - Bot Ready"
+    else:
+        status += " - Bot Initializing"
+    return web.Response(text=status)
 
 async def on_startup(app):
     """Set up webhook on startup"""
     try:
         print("🔄 Initializing Telegram application...")
+        
+        # Initialize the application
         await application.initialize()
         print("✅ Telegram application initialized")
         
+        # Set up bot commands in a simple way
+        print("📝 Setting up bot commands...")
+        commands = [
+            BotCommand("start", "Welcome message & semester links"),
+            BotCommand("help", "Show help message"),
+            BotCommand("semesters", "List all semesters with links"),
+            BotCommand("branches", "List all VTU branches"),
+            BotCommand("about", "Info about Notezy Bot"),
+            BotCommand("feedback", "Send feedback"),
+            BotCommand("sync", "Sync notes from database (Admin only)"),
+        ]
+        
+        try:
+            await application.bot.set_my_commands(commands)
+            print("✅ Bot commands registered successfully")
+        except Exception as e:
+            print(f"⚠️ Failed to register commands: {e}")
+        
+        # Set webhook
         webhook_url = f"{WEBHOOK_URL}/webhook"
         print(f"🔗 Setting webhook to: {webhook_url}")
         await application.bot.set_webhook(webhook_url)
         print(f"✅ Webhook set successfully to {webhook_url}")
         
-        # Verify webhook was set
-        webhook_info = await application.bot.get_webhook_info()
-        print(f"📋 Webhook info: {webhook_info}")
+        print("🎉 Startup completed successfully!")
         
     except Exception as e:
-        print(f"⚠️ Failed to set webhook: {e}")
+        print(f"❌ Startup failed: {e}")
         import traceback
         traceback.print_exc()
-        print("🔄 Continuing with webhook server anyway...")
+        print("⚠️ Bot may not work correctly, but server will continue running...")
 
 def main():
     """Main function for webhook bot"""
@@ -973,32 +996,8 @@ def main():
     print("🤖 Creating Telegram application...")
     application = ApplicationBuilder().token(BOT_TOKEN).build()
     print("✅ Telegram application created")
-
-    # Register bot commands immediately after building the app
-    commands = [
-        BotCommand("start", "Welcome message & semester links"),
-        BotCommand("help", "Show help message"),
-        BotCommand("semesters", "List all semesters with links"),
-        BotCommand("branches", "List all VTU branches"),
-        BotCommand("about", "Info about Notezy Bot"),
-        BotCommand("feedback", "Send feedback"),
-        BotCommand("sync", "Sync notes from database (Admin only)"),
-    ]
     
-    # Set commands synchronously
-    import asyncio
-    async def setup_commands():
-        try:
-            await application.bot.set_my_commands(commands)
-            print("✅ Bot commands registered successfully")
-            # Verify commands were set
-            current_commands = await application.bot.get_my_commands()
-            print(f"📋 Current commands: {[cmd.command for cmd in current_commands]}")
-        except Exception as e:
-            print(f"⚠️ Failed to register commands: {e}")
-    
-    # Run command setup
-    asyncio.run(setup_commands())
+    # Commands will be set up in the startup handler to avoid event loop conflicts
 
     # Add error handler for conflicts
     async def error_handler(update: Update, context):
