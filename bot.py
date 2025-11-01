@@ -260,7 +260,7 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """
 
             response = client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are an encouraging study mentor for engineering students. Write motivating messages about educational tools."},
                     {"role": "user", "content": about_prompt}
@@ -316,7 +316,7 @@ async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """
 
             response = client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are a feedback specialist. Generate specific, actionable feedback questions for educational tools."},
                     {"role": "user", "content": feedback_prompt}
@@ -381,7 +381,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             """
 
             response = client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.1-8b-instant",
                 messages=[
                     {"role": "system", "content": "You are a study coach for VTU engineering students. Provide practical, personalized tips."},
                     {"role": "user", "content": tips_prompt}
@@ -535,7 +535,7 @@ async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     """
 
                     response = client.chat.completions.create(
-                        model="llama-3.1-70b-versatile",
+                        model="llama-3.1-8b-instant",
                         messages=[
                             {"role": "system", "content": "You are a friendly AI assistant for VTU engineering students. Generate warm, helpful greetings."},
                             {"role": "user", "content": greeting_prompt}
