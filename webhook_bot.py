@@ -16,6 +16,7 @@ db = None
 # Sync state management to prevent multiple simultaneous syncs
 sync_in_progress = False
 last_sync_time = 0
+sync_disabled = False  # Emergency disable if too many rapid calls
 
 # AI features removed - keeping bot lightweight and focused
 
@@ -290,19 +291,42 @@ async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global sync_in_progress, last_sync_time
     
     try:
+        # Enhanced logging to debug repeated triggers
+        print(f"🔍 SYNC DEBUG: Function called by user {update.effective_user.id} ({update.effective_user.first_name})")
+        print(f"🔍 SYNC DEBUG: Message text: {update.message.text if update.message else 'No message'}")
+        print(f"🔍 SYNC DEBUG: Update ID: {update.update_id}")
+        
+        # Emergency disable check
+        global sync_disabled
+        if sync_disabled:
+            await update.message.reply_text("🚫 Sync temporarily disabled due to repeated automatic triggers. Contact admin.")
+            return
+        
         # Check if user is admin
         admin_user_id = os.getenv("ADMIN_USER_ID")
         user_id = update.effective_user.id
         
         if admin_user_id and str(user_id) != admin_user_id:
+            print(f"🔍 SYNC DEBUG: Access denied for non-admin user {user_id}")
             await update.message.reply_text("❌ Access denied. This command is for administrators only.")
             return
 
-        # Check rate limiting - prevent sync calls within 5 seconds
+        # Check rate limiting - prevent sync calls within 30 seconds (increased from 5)
         import time
         current_time = time.time()
-        if current_time - last_sync_time < 5:
-            await update.message.reply_text("⏳ Please wait a few seconds before triggering sync again.")
+        time_since_last = current_time - last_sync_time
+        if time_since_last < 30:
+            remaining_time = int(30 - time_since_last)
+            print(f"🔍 SYNC DEBUG: Rate limited - {remaining_time}s remaining")
+            
+            # If multiple rapid calls, disable sync temporarily
+            if time_since_last < 5:  # Less than 5 seconds - very suspicious
+                sync_disabled = True
+                print("🚨 EMERGENCY: Disabling sync due to rapid repeated calls")
+                await update.message.reply_text("🚫 Sync disabled - automatic triggering detected!")
+                return
+            
+            await update.message.reply_text(f"⏳ Please wait {remaining_time} seconds before triggering sync again.")
             return
         
         # Check if sync is already in progress
