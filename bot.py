@@ -13,15 +13,11 @@ load_dotenv()
 # Database will be initialized in main() to avoid import-time connections
 db = None
 
-# Grok AI integration
-try:
-    from openai import OpenAI
-    grok_available = True
-    print("✅ OpenAI library loaded successfully")
-except ImportError:
-    grok_available = False
-    OpenAI = None
-    print("⚠️ OpenAI library not available. Advanced AI features will be disabled.")
+# Sync state management to prevent multiple simultaneous syncs
+sync_in_progress = False
+last_sync_time = 0
+
+# AI features removed - keeping bot lightweight and focused
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Welcome message with main menu buttons"""
@@ -111,7 +107,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif callback_data == "about":
         text = (
             "🤖 About Notezy Bot\n\n"
-            "Notezy Bot is your AI-powered study companion for VTU engineering students!\n\n"
+            "Notezy Bot is your study companion for VTU engineering students!\n\n"
             "✨ Features:\n"
             "• Instant search across all subjects\n"
             "• Access to comprehensive VTU notes\n"
@@ -242,113 +238,24 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "💬 For support: notezyhelp@gmail.com"
     )
 
-    # Add AI-generated personalized message if available
-    if grok_available:
-        try:
-            client = OpenAI(
-                api_key=os.getenv("GROK_API_KEY"),
-                base_url="https://api.groq.com/openai/v1"
-            )
-
-            about_prompt = f"""
-            Write a personalized message for VTU engineering student {user_name} about how Notezy Bot can help them succeed.
-            Include:
-            - Encouragement for their engineering studies
-            - Mention of AI-powered features
-            - Quick study tip relevant to engineering
-            Keep it warm, motivating, and under 100 words.
-            """
-
-            response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": "You are an encouraging study mentor for engineering students. Write motivating messages about educational tools."},
-                    {"role": "user", "content": about_prompt}
-                ],
-                max_tokens=120,
-                temperature=0.8
-            )
-
-            ai_message = response.choices[0].message.content.strip()
-
-            enhanced_about = (
-                f"{base_about}\n\n"
-                f"💌 *A message for {user_name}:*\n"
-                f"{ai_message}"
-            )
-
-            await update.message.reply_text(enhanced_about)
-
-        except Exception as e:
-            print(f"⚠️ AI about message failed: {e}")
-            await update.message.reply_text(base_about)
-    else:
-        await update.message.reply_text(base_about)
+    await update.message.reply_text(base_about)
 
 
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle feedback requests with AI-generated prompts"""
-    user_name = update.effective_user.first_name or "there"
-
-    base_feedback = (
+    """Handle feedback requests"""
+    feedback_message = (
         "📝 We'd love to hear your feedback!\n\n"
         "Please share your thoughts, suggestions, or report any issues:\n\n"
         "💬 Send your feedback to: @notezy_support\n\n"
         "Your feedback helps us improve Notezy Bot for all students! 🙏"
     )
 
-    # Add AI-generated feedback prompts if available
-    if grok_available:
-        try:
-            client = OpenAI(
-                api_key=os.getenv("GROK_API_KEY"),
-                base_url="https://api.groq.com/openai/v1"
-            )
-
-            feedback_prompt = f"""
-            Generate 3 specific feedback questions for VTU engineering student {user_name} about Notezy Bot.
-            Focus on:
-            - Search functionality
-            - Note quality/usefulness
-            - User experience
-            - Feature suggestions
-            Make questions specific and actionable.
-            """
-
-            response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": "You are a feedback specialist. Generate specific, actionable feedback questions for educational tools."},
-                    {"role": "user", "content": feedback_prompt}
-                ],
-                max_tokens=150,
-                temperature=0.6
-            )
-
-            ai_questions = response.choices[0].message.content.strip()
-
-            enhanced_feedback = (
-                f"📝 We'd love to hear your feedback, {user_name}!\n\n"
-                f"🤖 *Help us improve by answering:*\n"
-                f"{ai_questions}\n\n"
-                f"💬 Send your feedback to: @notezy_support\n\n"
-                f"Your input helps make Notezy Bot better for all engineering students! 🙏"
-            )
-
-            await update.message.reply_text(enhanced_feedback)
-
-        except Exception as e:
-            print(f"⚠️ AI feedback prompts failed: {e}")
-            await update.message.reply_text(base_feedback)
-    else:
-        await update.message.reply_text(base_feedback)
+    await update.message.reply_text(feedback_message)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Display help information and available commands with AI-generated tips"""
-    user_name = update.effective_user.first_name or "there"
-
-    base_help = (
+    """Display help information and available commands"""
+    help_message = (
         "🆘 Help & Commands\n\n"
         "Available Commands:\n\n"
         "🚀 /start - Welcome message with semester links\n"
@@ -365,46 +272,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🌐 Visit: https://www.notezy.online"
     )
 
-    # Add AI-generated personalized tips if available
-    if grok_available:
-        try:
-            client = OpenAI(
-                api_key=os.getenv("GROK_API_KEY"),
-                base_url="https://api.groq.com/openai/v1"
-            )
-
-            tips_prompt = f"""
-            Generate 3 personalized study tips for VTU engineering student {user_name}.
-            Focus on effective note-taking, search strategies, and time management.
-            Keep each tip concise (1 sentence each).
-            Make them relevant to engineering studies.
-            """
-
-            response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": "You are a study coach for VTU engineering students. Provide practical, personalized tips."},
-                    {"role": "user", "content": tips_prompt}
-                ],
-                max_tokens=150,
-                temperature=0.7
-            )
-
-            ai_tips = response.choices[0].message.content.strip()
-
-            enhanced_help = (
-                f"{base_help}\n\n"
-                f"🤖 *Personalized Tips for {user_name}:*\n"
-                f"{ai_tips}"
-            )
-
-            await update.message.reply_text(enhanced_help)
-
-        except Exception as e:
-            print(f"⚠️ AI help tips failed: {e}")
-            await update.message.reply_text(base_help)
-    else:
-        await update.message.reply_text(base_help)
+    await update.message.reply_text(help_message)
 
 
 async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -497,77 +365,13 @@ async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Get user's first name if available
             user_name = update.effective_user.first_name or "there"
 
-            # Generate AI-powered greeting if Grok is available
-            if grok_available:
-                try:
-                    # Get current time info
-                    import datetime
-                    current_hour = datetime.datetime.now().hour
-
-                    # Determine time of day
-                    if 5 <= current_hour < 12:
-                        time_context = "morning"
-                    elif 12 <= current_hour < 17:
-                        time_context = "afternoon"
-                    elif 17 <= current_hour < 22:
-                        time_context = "evening"
-                    else:
-                        time_context = "night"
-
-                    # Use Groq to generate personalized greeting
-                    client = OpenAI(
-                        api_key=os.getenv("GROK_API_KEY"),  # Actually using Groq API key
-                        base_url="https://api.groq.com/openai/v1"
-                    )
-
-                    greeting_prompt = f"""
-                    Generate a friendly, personalized greeting for a VTU engineering student named {user_name}.
-                    Current time: {time_context}
-                    Context: This is a study notes bot for VTU engineering students.
-
-                    Requirements:
-                    - Keep it warm and encouraging
-                    - Include 2-3 specific study-related suggestions or tips
-                    - Mention that they can search for notes
-                    - Keep it concise (under 150 words)
-                    - Use emojis appropriately
-                    - Make it relevant to engineering students
-                    """
-
-                    response = client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
-                        messages=[
-                            {"role": "system", "content": "You are a friendly AI assistant for VTU engineering students. Generate warm, helpful greetings."},
-                            {"role": "user", "content": greeting_prompt}
-                        ],
-                        max_tokens=150,
-                        temperature=0.8
-                    )
-
-                    ai_greeting = response.choices[0].message.content.strip()
-
-                    await update.message.reply_text(
-                        ai_greeting,
-                        parse_mode='Markdown'
-                    )
-
-                except Exception as e:
-                    print(f"⚠️ AI greeting failed: {e}")
-                    # Fallback to regular greeting
-                    await update.message.reply_text(
-                        f"👋 Hello {user_name}! I'm your Notezy assistant for VTU engineering notes! 📚\n\n"
-                        "💡 Try searching for subjects like 'Data Structures' or '18CS51'\n"
-                        "🔍 What notes are you looking for today?",
-                        parse_mode='Markdown'
-                    )
-            else:
-                # Regular greeting when AI is not available
-                await update.message.reply_text(
-                    f"👋 Hello {user_name}! I'm your Notezy assistant for VTU engineering notes! 📚\n\n"
-                    "💡 Try searching for subjects like 'Data Structures' or '18CS51'\n"
-                    "🔍 What notes are you looking for today?",
-                    parse_mode='Markdown'
-                )
+            # Simple greeting response
+            await update.message.reply_text(
+                f"👋 Hello {user_name}! I'm your Notezy assistant for VTU engineering notes! 📚\n\n"
+                "💡 Try searching for subjects like 'Data Structures' or '18CS51'\n"
+                "🔍 What notes are you looking for today?",
+                parse_mode='Markdown'
+            )
 
             return
 
@@ -576,6 +380,8 @@ async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin command to sync notes from source database"""
+    global sync_in_progress, last_sync_time
+    
     try:
         # Check if user is admin
         admin_user_id = os.getenv("ADMIN_USER_ID")
@@ -585,6 +391,24 @@ async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Access denied. This command is for administrators only.")
             return
 
+        # Check rate limiting - prevent sync calls within 5 seconds
+        import time
+        current_time = time.time()
+        if current_time - last_sync_time < 5:
+            await update.message.reply_text("⏳ Please wait a few seconds before triggering sync again.")
+            return
+        
+        # Check if sync is already in progress
+        if sync_in_progress:
+            print(f"⚠️ Sync already in progress - rejecting request from user {user_id}")
+            await update.message.reply_text("⏳ Sync already in progress. Please wait...")
+            return
+        
+        # Set sync in progress and update timestamp
+        sync_in_progress = True
+        last_sync_time = current_time
+        print(f"🚀 Starting sync process for user {user_id}")
+        
         await update.message.reply_text("🔄 Starting sync process...")
 
         # Perform sync
@@ -609,6 +433,10 @@ async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         await update.message.reply_text(f"❌ Error during sync: {str(e)}")
+    finally:
+        # Reset sync state
+        sync_in_progress = False
+        print("🔄 Sync state reset - ready for next sync")
 
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global db
@@ -649,70 +477,8 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
 
-    # Use Grok to analyze and improve the query if available
+    # Use query as-is without AI enhancement
     enhanced_query = query
-    if grok_available and len(query) > 2:
-        try:
-            # Use Grok to analyze the query and extract key search terms
-            client = OpenAI(
-                api_key=os.getenv("GROK_API_KEY"),
-                base_url="https://api.groq.com/openai/v1"
-            )
-
-            analysis_prompt = f"""
-            Analyze this user query for a VTU engineering notes search: "{query}"
-
-            Extract and return ONLY simple alphanumeric terms and subject codes.
-            Focus on VTU syllabus subjects, programming languages, algorithms, data structures, engineering concepts.
-            
-            Rules:
-            - Return only letters, numbers, and spaces
-            - NO special characters or punctuation
-            - Return single words or simple phrases
-            - If uncertain, return the original query as-is
-            
-            Examples:
-            - "programming" becomes "programming"  
-            - "data structures" becomes "data structures"
-            - "BCS301" becomes "BCS301"
-            - complex terms become simple terms
-            """
-
-            response = client.chat.completions.create(
-                model="llama-3.1-8b-instant",
-                messages=[
-                    {"role": "system", "content": "You are a query analyzer for VTU engineering notes search. Extract key technical terms and subject names."},
-                    {"role": "user", "content": analysis_prompt}
-                ],
-                max_tokens=100,
-                temperature=0.1
-            )
-
-            grok_analysis = response.choices[0].message.content.strip()
-
-            # Sanitize the AI response to remove problematic characters
-            import re
-            # Keep only alphanumeric characters, spaces, and hyphens
-            sanitized_analysis = re.sub(r'[^a-zA-Z0-9\s\-]', ' ', grok_analysis).strip()
-            # Remove multiple spaces
-            sanitized_analysis = re.sub(r'\s+', ' ', sanitized_analysis)
-
-            # Use sanitized analysis if it's different and meaningful
-            if sanitized_analysis and len(sanitized_analysis) > 2 and sanitized_analysis.lower() != query.lower():
-                # Validate the enhanced query to avoid regex errors
-                try:
-                    test_result = db.search_notes(sanitized_analysis, limit=5)
-                    if test_result["type"] in ["exact", "partial"]:
-                        enhanced_query = sanitized_analysis
-                        print(f"🔍 Enhanced query: '{query}' -> '{enhanced_query}'")
-                except Exception as validation_error:
-                    print(f"⚠️ Enhanced query validation failed: {validation_error}")
-                    enhanced_query = query
-
-        except Exception as e:
-            # If Grok analysis fails, use original query
-            print(f"⚠️ Grok query analysis failed: {e}")
-            enhanced_query = query
 
     # Search in database with enhanced query - increased limit for more comprehensive results
     search_result = db.search_notes(enhanced_query, limit=100)
@@ -775,10 +541,6 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if related_subjects:
                     response_text += "• " + "\n• ".join(related_subjects[:6])
 
-        # Add note if query was enhanced
-        if enhanced_query != query:
-            response_text = f"🤖 *AI-enhanced search for: '{query}'*\n\n" + response_text
-
         await search_message.edit_text(
             response_text,
             parse_mode='Markdown',
@@ -822,10 +584,6 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Add search tips for better results
         if total_matches > 20:
             response_text += f"\n\n💡 *Tip: Try more specific terms like subject codes (e.g., BCS301) for exact matches*"
-
-        # Add note if query was enhanced
-        if enhanced_query != query:
-            response_text = f"🤖 *AI-enhanced search for: '{query}'*\n\n" + response_text
 
         await search_message.edit_text(
             response_text,
@@ -878,71 +636,15 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     else:
-        # No matches at all - generate AI suggestions if available
+        # No matches at all - simple message without AI
         total_notes = db.count_notes()
-
-        if grok_available and len(query) > 2:
-            try:
-                # Use Grok to generate helpful suggestions
-                client = OpenAI(
-                    api_key=os.getenv("GROK_API_KEY"),
-                    base_url="https://api.groq.com/openai/v1"
-                )
-
-                suggestion_prompt = f"""
-                A VTU engineering student searched for: "{query}"
-                No results found in our notes database.
-
-                Generate 3-4 helpful suggestions:
-                1. Alternative search terms they could try
-                2. Related VTU subjects they might be interested in
-                3. Common misspellings or variations
-                4. Broader categories to explore
-
-                Keep suggestions practical and relevant to VTU engineering syllabus.
-                Format as a bulleted list.
-                """
-
-                response = client.chat.completions.create(
-                    model="llama-3.1-8b-instant",
-                    messages=[
-                        {"role": "system", "content": "You are a helpful study assistant for VTU engineering students. Provide practical search suggestions."},
-                        {"role": "user", "content": suggestion_prompt}
-                    ],
-                    max_tokens=200,
-                    temperature=0.7
-                )
-
-                ai_suggestions = response.choices[0].message.content.strip()
-
-                response_text = (
-                    f"❌ *{query}* not found in our database.\n\n"
-                    f"🤖 *AI Suggestions:*\n{ai_suggestions}\n\n"
-                    f"📚 Total notes available: {total_notes}\n\n"
-                    f"🔍 Try one of the suggestions above!"
-                )
-
-            except Exception as e:
-                print(f"⚠️ AI suggestions failed: {e}")
-                # Fallback to regular message
-                response_text = (
-                    f"❌ *{query}* not found in our database.\n\n"
-                    f"💡 *Tip:* Search by subject code (e.g., 18CS51) or name (e.g., Data Structures)\n"
-                    f"📚 Total notes available: {total_notes}\n\n"
-                    f"🔍 Try searching for a different subject or semester!"
-                )
-        else:
-            # Regular message when AI is not available
-            response_text = (
-                f"❌ *{query}* not found in our database.\n\n"
-                f"💡 *Tip:* Search by subject code (e.g., 18CS51) or name (e.g., Data Structures)\n"
-                f"📚 Total notes available: {total_notes}\n\n"
-                f"🔍 Try searching for a different subject or semester!"
-            )
-
-        # Add note if query was enhanced
-        if enhanced_query != query:
-            response_text = f"🤖 *AI-enhanced search for: '{query}'*\n\n" + response_text
+        
+        response_text = (
+            f"❌ *{query}* not found in our database.\n\n"
+            f"💡 *Tip:* Search by subject code (e.g., BCS301) or name (e.g., Data Structures)\n"
+            f"📚 Total notes available: {total_notes}\n\n"
+            f"🔍 Try searching for a different subject or semester!"
+        )
 
         await search_message.edit_text(
             response_text,
