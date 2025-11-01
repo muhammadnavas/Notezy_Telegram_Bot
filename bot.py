@@ -14,11 +14,7 @@ load_dotenv()
 # Database will be initialized in main() to avoid import-time connections
 db = None
 
-# Sync state management to prevent multiple simultaneous syncs
-sync_in_progress = False
-last_sync_time = 0
-sync_disabled = False  # Emergency disable if too many rapid calls
-sync_call_count = 0  # Track recursive sync calls
+# Sync functionality removed - bot now focused on search and help only
 
 # AI features removed - keeping bot lightweight and focused
 
@@ -381,8 +377,8 @@ async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # If not a greeting or semester query, let it fall through to search handler
     await search(update, context)
 
-async def sync_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin command to sync notes from source database with recursion protection"""
+# Sync functionality removed for stability
+
     global db, last_sync_time, sync_call_count
     
     # Enhanced protection against recursive calls
@@ -710,8 +706,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("branches", branches_command))
     app.add_handler(CommandHandler("about", about_command))
     app.add_handler(CommandHandler("feedback", feedback_command))
-    # Sync handler with enhanced protection
-    app.add_handler(CommandHandler("sync", sync_notes))
+    # Sync functionality removed for stability
     
     # Handle search command
     app.add_handler(CommandHandler("search", search))
@@ -730,7 +725,7 @@ if __name__ == "__main__":
         BotCommand("branches", "List all VTU branches"),
         BotCommand("about", "Info about Notezy Bot"),
         BotCommand("feedback", "Send feedback"),
-        BotCommand("sync", "Sync notes from database (Admin only)"),  # PROTECTED
+        # BotCommand("sync", "Sync notes from database (Admin only)"),  # REMOVED
     ]
 
     # Try to set commands synchronously
