@@ -398,8 +398,19 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # Called as direct message - use full text but remove /search prefix if present
         query = update.message.text.strip()
+        
+        # Handle different command formats
+        # /search query
         if query.lower().startswith('/search '):
             query = query[8:].strip()  # Remove '/search ' prefix
+        # /search@botname query
+        elif query.lower().startswith('/search@'):
+            # Find the space after @botname and extract everything after it
+            space_index = query.find(' ')
+            if space_index != -1:
+                query = query[space_index + 1:].strip()
+            else:
+                query = ""  # Just the command with @botname, no query
 
     if not query:
         await update.message.reply_text(
