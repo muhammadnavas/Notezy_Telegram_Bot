@@ -75,44 +75,78 @@ class NotesDatabase:
     def search_notes(self, query: str, limit: int = 10) -> Dict:
         """Advanced search with multiple strategies"""
         query_lower = query.lower().strip()
+        original_query = query_lower
+        
+        # Preprocess query for better matching
+        query_variations = [query_lower]
+        
+        # Handle semester queries (e.g., "3rd sem" -> "sem3")
+        sem_match = re.search(r'(\d+)(?:st|nd|rd|th)?\s*sem(?:ester)?', query_lower)
+        if sem_match:
+            sem_num = sem_match.group(1)
+            query_variations.extend([f"sem{sem_num}", f"Sem{sem_num}"])
+        
+        # Handle common abbreviations
+        abbreviations = {
+            'math': ['mathematics', 'maths'],
+            'os': ['operating systems', 'operating system'],
+            'cn': ['computer networks', 'computer network', 'networks'],
+            'dbms': ['database', 'database management'],
+            'ds': ['data structures', 'data structure'],
+            'ada': ['analysis and design of algorithms', 'algorithms'],
+            'oops': ['object oriented programming', 'oop'],
+            'se': ['software engineering'],
+            'coa': ['computer organization', 'computer architecture'],
+            'mp': ['microprocessor', 'microcontroller'],
+            'dms': ['discrete mathematical structures', 'discrete mathematics']
+        }
+        
+        if query_lower in abbreviations:
+            query_variations.extend(abbreviations[query_lower])
         
         # Strategy 1: Exact subject code match (highest priority)
-        exact_code_match = list(self.collection.find({
-            "subject_code": {"$regex": f"^{query_lower}$", "$options": "i"}
-        }).limit(limit))
-        
-        if exact_code_match:
-            results = []
-            for note in exact_code_match:
-                results.append({
-                    'full_name': note['full_name'],
-                    'branch_url': note['branch_url'],
-                    'semester': note['semester'],
-                    'branch': note['branch'],
-                    'exact_match': True,
-                    'match_type': 'exact_code'
-                })
-            return {"type": "exact", "results": results, "query": query}
+        for query_var in query_variations:
+            exact_code_match = list(self.collection.find({
+                "subject_code": {"$regex": f"^{re.escape(query_var)}$", "$options": "i"}
+            }).limit(limit))
+            
+            if exact_code_match:
+                results = []
+                for note in exact_code_match:
+                    results.append({
+                        'full_name': note['full_name'],
+                        'branch_url': note['branch_url'],
+                        'semester': note['semester'],
+                        'branch': note['branch'],
+                        'subject_code': note.get('subject_code', ''),
+                        'subject_name': note.get('subject_name', ''),
+                        'exact_match': True,
+                        'match_type': 'exact_code'
+                    })
+                return {"type": "exact", "results": results, "query": query}
         
         # Strategy 2: Exact subject name match
-        exact_name_match = list(self.collection.find({
-            "subject_name": {"$regex": f"^{query_lower}$", "$options": "i"}
-        }).limit(limit))
+        for query_var in query_variations:
+            exact_name_match = list(self.collection.find({
+                "subject_name": {"$regex": f"^{re.escape(query_var)}$", "$options": "i"}
+            }).limit(limit))
+            
+            if exact_name_match:
+                results = []
+                for note in exact_name_match:
+                    results.append({
+                        'full_name': note['full_name'],
+                        'branch_url': note['branch_url'],
+                        'semester': note['semester'],
+                        'branch': note['branch'],
+                        'subject_code': note.get('subject_code', ''),
+                        'subject_name': note.get('subject_name', ''),
+                        'exact_match': True,
+                        'match_type': 'exact_name'
+                    })
+                return {"type": "exact", "results": results, "query": query}
         
-        if exact_name_match:
-            results = []
-            for note in exact_name_match:
-                results.append({
-                    'full_name': note['full_name'],
-                    'branch_url': note['branch_url'],
-                    'semester': note['semester'],
-                    'branch': note['branch'],
-                    'exact_match': True,
-                    'match_type': 'exact_name'
-                })
-            return {"type": "exact", "results": results, "query": query}
-        
-        # Strategy 3: Partial matches with scoring
+        # Strategy 3: Partial matches with improved scoring
         partial_matches = []
         
         # Search in multiple fields with different weights
@@ -124,34 +158,57 @@ class NotesDatabase:
             ("branch", 2)            # Lowest weight
         ]
         
-        for field, weight in search_fields:
-            # Use word boundary regex for better matching
-            regex_pattern = r'\b' + re.escape(query_lower) + r'\b'
-            matches = list(self.collection.find({
-                field: {"$regex": regex_pattern, "$options": "i"}
-            }).limit(limit * 3))  # Get even more for better coverage
-            
-            for match in matches:
-                # Calculate relevance score
-                score = weight
-                field_value = match[field].lower()
+        # Try multiple search strategies for partial matching
+        for query_var in query_variations:
+            for field, weight in search_fields:
+                # Strategy 1: Contains match (most flexible)
+                contains_matches = list(self.collection.find({
+                    field: {"$regex": re.escape(query_var), "$options": "i"}
+                }).limit(limit * 2))
                 
-                # Bonus for exact word matches
-                if query_lower in field_value.split():
-                    score += 5
+                # Strategy 2: Word boundary match (more precise)
+                if len(query_var) > 2:  # Only for longer queries
+                    word_boundary_matches = list(self.collection.find({
+                        field: {"$regex": r'\b' + re.escape(query_var), "$options": "i"}
+                    }).limit(limit * 2))
+                else:
+                    word_boundary_matches = []
                 
-                # Bonus for starting with query
-                if field_value.startswith(query_lower):
-                    score += 3
+                all_matches = contains_matches + word_boundary_matches
                 
-                # Bonus for shorter matches (more specific)
-                score += max(0, 10 - len(field_value))
-                
-                partial_matches.append({
-                    **match,
-                    'score': score,
-                    'matched_field': field
-                })
+                for match in all_matches:
+                    if not match.get(field):  # Skip if field is None or empty
+                        continue
+                        
+                    # Calculate relevance score
+                    score = weight
+                    field_value = str(match[field]).lower()
+                    
+                    # Higher score for exact word matches
+                    if query_var in field_value.split():
+                        score += 8
+                    # Medium score for substring matches
+                    elif query_var in field_value:
+                        score += 4
+                    
+                    # Bonus for starting with query
+                    if field_value.startswith(query_var):
+                        score += 5
+                    
+                    # Bonus for shorter matches (more specific)
+                    if len(field_value) < 50:
+                        score += 3
+                    
+                    # Extra bonus if matched in subject name or code
+                    if field in ['subject_name', 'subject_code']:
+                        score += 2
+                    
+                    partial_matches.append({
+                        **match,
+                        'score': score,
+                        'matched_field': field,
+                        'matched_query': query_var
+                    })
         
         # Remove duplicates and sort by score
         seen = set()

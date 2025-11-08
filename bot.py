@@ -379,94 +379,6 @@ async def greeting(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Sync functionality removed for stability
 
-    global db, last_sync_time, sync_call_count
-    
-    # Enhanced protection against recursive calls
-    current_time = time.time()
-    sync_call_count += 1
-    
-    print(f"🔄 Sync request #{sync_call_count} from user {update.effective_user.id} at {current_time}")
-    
-    # Check call count limit (protection against runaway calls)
-    if sync_call_count > 3:
-        print(f"🚫 SYNC BLOCKED: Too many calls ({sync_call_count}), resetting counter")
-        sync_call_count = 0
-        await update.message.reply_text(
-            "⚠️ **Sync Protection Activated**\n\n"
-            "Too many sync requests detected. Please wait a moment and try again."
-        )
-        return
-    
-    # Enhanced rate limiting (60 seconds between syncs)
-    if current_time - last_sync_time < 60:
-        time_left = int(60 - (current_time - last_sync_time))
-        sync_call_count = max(0, sync_call_count - 1)  # Don't penalize rate-limited calls
-        await update.message.reply_text(
-            f"⏰ **Please wait {time_left} seconds** before syncing again.\n\n"
-            f"This prevents overloading the system."
-        )
-        return
-    
-    # Check admin authorization
-    user_id = update.effective_user.id
-    admin_user_id = os.getenv("ADMIN_USER_ID")
-    if admin_user_id and str(user_id) != admin_user_id:
-        sync_call_count = max(0, sync_call_count - 1)  # Don't penalize unauthorized calls
-        await update.message.reply_text("❌ Sorry, only admins can sync notes.")
-        return
-    
-    # Initialize database if needed
-    if db is None:
-        try:
-            db = NotesDatabase()
-            print("✅ Database initialized for sync")
-        except Exception as e:
-            sync_call_count = max(0, sync_call_count - 1)
-            print(f"❌ Database initialization failed: {e}")
-            await update.message.reply_text("❌ Database connection failed. Please try again later.")
-            return
-    
-    # Update timing before starting sync
-    last_sync_time = current_time
-    
-    # Perform the sync with comprehensive error handling
-    try:
-        await update.message.reply_text("🔄 Starting sync... Please wait.")
-        
-        print(f"📊 Starting sync operation (call #{sync_call_count})...")
-        result = db.sync_from_source()
-        
-        if result and result.get('success'):
-            sync_call_count = max(0, sync_call_count - 1)  # Successful sync, reduce counter
-            await update.message.reply_text(
-                f"✅ **Sync completed successfully!**\n\n"
-                f"📊 **Statistics:**\n"
-                f"• Added: {result.get('added', 0)} notes\n"
-                f"• Updated: {result.get('updated', 0)} notes\n"
-                f"• Total: {result.get('total', 0)} notes in database"
-            )
-            print(f"✅ Sync completed successfully: {result}")
-        else:
-            sync_call_count = max(0, sync_call_count - 1)
-            error_msg = result.get('error', 'Unknown error') if result else 'No result returned'
-            await update.message.reply_text(f"❌ Sync failed: {error_msg}")
-            print(f"❌ Sync failed: {error_msg}")
-            
-    except Exception as e:
-        sync_call_count = max(0, sync_call_count - 1)  # Reset on error
-        print(f"❌ Sync error: {str(e)}")
-        await update.message.reply_text(f"❌ Sync failed due to an error: {str(e)}")
-    
-    print(f"🏁 Sync operation completed. Call count: {sync_call_count}")
-    
-
-    print(f"� SYNC BLOCKED: Attempt from user {update.effective_user.id} - sync is disabled")
-    await update.message.reply_text(
-        "� **SYNC TEMPORARILY DISABLED**\n\n"
-        "The sync command has been disabled due to automatic triggering issues.\n"
-        "Contact the administrator to re-enable it after investigation."
-    )
-
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global db
     
@@ -733,6 +645,7 @@ if __name__ == "__main__":
     # Register bot commands synchronously using the app's bot
     commands = [
         BotCommand("start", "Welcome message & semester links"),
+        BotCommand("search", "Search for notes by subject code or name"),
         BotCommand("help", "Show help message"),
         BotCommand("semesters", "List all semesters with links"),
         BotCommand("branches", "List all VTU branches"),
